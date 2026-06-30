@@ -118,8 +118,8 @@ register_hook() {
     return 0
   fi
 
-  if ! command_exists jq; then
-    log_warn "jq not found — skipping automatic settings.json update"
+  if ! command_exists python3; then
+    log_warn "python3 not found — skipping automatic settings.json update"
     log_warn "add this block to ~/.claude/settings.json manually:"
     printf '    "hooks": {\n'
     printf '      "SessionStart": [{"hooks": [{"type": "command", "command": "%s"}]}]\n' "$HOOK_COMMAND"
@@ -129,21 +129,34 @@ register_hook() {
 
   mkdir -p "$(dirname "$settings_file")"
 
-  if [ ! -f "$settings_file" ]; then
-    jq -n \
-      --arg cmd "$HOOK_COMMAND" \
-      '{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": $cmd}]}]}}' \
-      > "$settings_file"
-    log_success "created $settings_file with SessionStart hook"
-    return 0
-  fi
+  python3 - "$settings_file" "$HOOK_COMMAND" << 'PYEOF'
+import json, sys, os
 
-  local tmp
-  tmp="$(mktemp)"
-  jq --arg cmd "$HOOK_COMMAND" \
-    '.hooks.SessionStart += [{"hooks": [{"type": "command", "command": $cmd}]}]' \
-    "$settings_file" > "$tmp" && mv "$tmp" "$settings_file"
-  log_success "added SessionStart hook to $settings_file"
+settings_file = sys.argv[1]
+hook_command  = sys.argv[2]
+
+data = {}
+if os.path.exists(settings_file):
+    with open(settings_file) as f:
+        data = json.load(f)
+
+data.setdefault("hooks", {}).setdefault("SessionStart", [])
+data["hooks"]["SessionStart"].append(
+    {"hooks": [{"type": "command", "command": hook_command}]}
+)
+
+tmp = settings_file + ".tmp"
+with open(tmp, "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+os.replace(tmp, settings_file)
+PYEOF
+
+  if [ $? -eq 0 ]; then
+    log_success "registered SessionStart hook in $settings_file"
+  else
+    log_error "failed to update $settings_file — add the hook manually"
+  fi
 }
 
 # --- context-mode MCP ---------------------------------------------------------
