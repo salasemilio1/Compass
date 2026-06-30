@@ -30,8 +30,6 @@ Use these as slash commands inside any Claude Code session.
 | `/init-compass` | Add compass to a project (run once per project) |
 | `/warm-up` | Load project context at the start of a session |
 | `/wrap-up` | Save what you built at the end of a session |
-| `/explain <thing>` | Quick explanation of code or a compass entry |
-| `/new-experiment` | Log an ML run with config, results, and notes |
 
 ## How a session works
 
