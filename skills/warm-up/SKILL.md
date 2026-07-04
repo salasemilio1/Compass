@@ -26,7 +26,13 @@ warm-up never writes. The goal: a cold session becomes useful in seconds without
    entries: relevant `decisions/`, recent `logs/`, and any `experiments/` that bear on the task.
    Skip the rest — loading everything defeats the purpose.
 
-5. **Report the primed context** in a brief summary: what the project is, where it stands, what's next,
+5. **Check for a graphify graph.** If `graphify-out/graph.json` exists, it's an auto-generated structural
+   map (what calls what, where things live). Prefer `graphify query "<question>"` over grepping/reading
+   raw files for mechanical structural questions. This is advisory, not required — compass's own
+   `architecture/overview.md` remains the source of curated intent. Say nothing about graphify if
+   `graphify-out/` doesn't exist.
+
+6. **Report the primed context** in a brief summary: what the project is, where it stands, what's next,
    and which entries you loaded. Then proceed with the user's task.
 
 ## Notes

@@ -169,6 +169,43 @@ install_context_mode() {
   fi
 }
 
+# --- graphify (optional navigation layer) --------------------------------------
+
+install_graphify() {
+  if command_exists graphify; then
+    log_success "graphify already installed"
+    return 0
+  fi
+
+  local installer=""
+  if command_exists uv; then
+    installer="uv tool install graphifyy"
+  elif command_exists pipx; then
+    installer="pipx install graphifyy"
+  elif command_exists pip; then
+    installer="pip install graphifyy"
+  else
+    log_warn "no uv/pipx/pip found — skipping graphify install (optional)"
+    log_warn "to install later: uv tool install graphifyy && graphify install"
+    return 0
+  fi
+
+  log_info "installing graphify ($installer)"
+  if $installer >/dev/null 2>&1 && command_exists graphify; then
+    log_success "graphify installed"
+  else
+    log_warn "graphify install failed — run manually:"
+    log_warn "  $installer && graphify install"
+    return 0
+  fi
+
+  if graphify install >/dev/null 2>&1; then
+    log_success "graphify skill registered"
+  else
+    log_warn "graphify skill registration failed — run manually: graphify install"
+  fi
+}
+
 # --- main ---------------------------------------------------------------------
 
 main() {
@@ -197,6 +234,10 @@ main() {
 
   log_info "context-mode MCP (token efficiency)"
   install_context_mode
+  echo
+
+  log_info "graphify (optional navigation layer)"
+  install_graphify
   echo
 
   log_success "compass install complete"

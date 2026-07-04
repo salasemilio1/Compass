@@ -23,6 +23,14 @@ This spec is the contract. The `template/` directory beside it is the concrete s
   scratch/          # ephemeral working notes (never authoritative)
 ```
 
+### Relationship to adjacent optional tools
+
+A repo may also have a `graphify-out/` directory (from [graphify](https://github.com/safishamsi/graphify),
+an auto-generated code structure graph) or context-mode sandboxing configured. compass never reads or
+writes `graphify-out/` — it's read-only reference material an agent may consult for mechanical lookups
+("what calls X"), same trust tier as reading source directly. compass stays the source of curated intent
+("why was X built this way"); the two are complementary, not merged.
+
 ---
 
 ## 2. The categories

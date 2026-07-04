@@ -52,6 +52,27 @@ claude mcp add context-mode npx @anthropic-ai/mcp-server-context-mode
 
 Run `claude mcp list` to confirm it's active. Once installed, Claude Code will use it automatically when compass wrap-up runs git diffs.
 
+## graphify (optional navigation layer)
+
+[graphify](https://github.com/safishamsi/graphify) turns a codebase into a queryable structural graph — "what calls what, where does X live" — so an agent can navigate without repeatedly grepping and reading files. It's a separate, optional layer:
+
+| Layer | Answers |
+|---|---|
+| **graphify** | "What calls X? Where does Y live? How is Z connected?" — auto-derived, regenerated from code |
+| **context-mode** | Keeps large tool output (diffs, test runs, build logs) out of your session window |
+| **compass** | "Why was this built this way? What did we decide? What's the status?" — curated, human-reviewed |
+
+`install.sh` installs graphify's CLI/skill for you (`uv tool install graphifyy && graphify install`, or `pipx`/`pip` as a fallback). Code files (`.py`, `.json`, `.sh`, etc.) are parsed locally via tree-sitter — no LLM calls. Only prose files (`.md`, `.txt`, `.rst`) go through an LLM for concept/relationship extraction.
+
+To keep that LLM call local instead of hitting a cloud API, point graphify at Ollama:
+
+```bash
+export OLLAMA_BASE_URL=http://localhost:11434/v1
+export OLLAMA_MODEL=<your pulled model>   # e.g. qwen2.5-coder:7b
+```
+
+With no cloud API key set in your environment, graphify auto-detects Ollama. If a cloud key is present, pass `--backend ollama` explicitly. `warm-up` will use an existing `graphify-out/graph.json` for structural lookups when present, and stays silent about it otherwise.
+
 ## What gets installed
 
 The install script sets up:
