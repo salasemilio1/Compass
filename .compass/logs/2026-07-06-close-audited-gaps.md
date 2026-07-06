@@ -1,7 +1,7 @@
 # close audited compass gaps with deterministic scripts
 
 Date: 2026-07-06
-Commits: f01c3c9..(uncommitted -- see note below)
+Commits: f01c3c9..403a183
 
 ## Why
 Followed up an audit of compass's own design (assuming continued real use) that found five places
@@ -43,8 +43,3 @@ repo memory), or are already solved by the harness. See decisions/0002.
 None -- all additive. `install.sh` now refuses to run from a non-canonical checkout without `--dev`,
 which is a behavior change for anyone who was relying on the old unconditional-symlink behavior from a
 dev clone; the fix is a one-time `--dev` flag or setting `$DOTFILES` correctly.
-
-## Note on this entry's Commits: range
-Everything above is currently **uncommitted** in the working tree (HEAD is still f01c3c9, same as the
-prior log's anchor). The next wrap-up's anchor mechanism only works cleanly once this is committed --
-this session commits it (see below), so the next wrap-up should anchor off that new commit.
