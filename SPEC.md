@@ -1,5 +1,8 @@
 # compass — protocol specification
 
+**Spec version:** 1 — bump this when a convention below changes, so `scripts/compass-check.sh` can
+detect a repo's `AGENTS.md` drifting behind the spec it was scaffolded from.
+
 `compass` is the in-repo agent-memory protocol. A repo "has a compass" when it contains a `.compass/`
 directory following this spec. Its purpose: **orient any agent in the codebase cheaply**, so sessions
 can be disposable and knowledge lives in the repo instead of in a conversation.
@@ -44,6 +47,13 @@ writes `graphify-out/` — it's read-only reference material an agent may consul
 | `logs` | One file per completed task: why / files touched / assumptions / learnings / breaking changes | "What changed in this work and why?" |
 | `learnings` | Durable gotchas extracted from logs/experiments | "What mistake should I not repeat?" |
 | `scratch` | Temporary notes for in-flight work | nothing authoritative |
+
+**Dedup note (`learnings`):** before a new `learnings/*.md` is written, `wrap-up` runs
+`tools/learning-dedup/check_similarity.py` — a three-stage filter (exact hash → lexical overlap →
+embedding similarity, only reaching the model for the genuinely ambiguous case). Stages 1–2 are exact
+and lexical guarantees, not heuristics; the embedding stage narrows the true-paraphrase residual but
+does not guarantee it, and no stage can tell you a learning has become outright false. That residual is
+left open by design, not solved.
 
 ---
 
@@ -117,6 +127,11 @@ Rules:
 - Newest entries first within `experiments`/`logs`.
 - `INDEX.md` is regenerated/updated by `wrap-up` and `new-experiment`; it is the single thing warm-up is
   guaranteed to read, so every new artifact must add its line here.
+- **Capped.** `logs` and `experiments` sections are capped at 15 entries each. Entries beyond the cap are
+  moved verbatim to `<category>/archive.md` (never linked from "Start here") by
+  `scripts/compass-check.sh --fix`, run automatically as part of `wrap-up`. This keeps warm-up's
+  guaranteed read cheap regardless of how long a repo has been in use — see `scripts/compass-check.sh`
+  for the mechanism.
 
 ---
 
@@ -128,6 +143,14 @@ Rules:
 - **Concise over complete.** These are retrieval aids, not transcripts. If an entry grows long, it's
   probably two entries.
 - Entries follow my `coding-style.md` conventions for prose too: precise, no needless abbreviation.
+- **ADR supersession:** an ADR that replaces an earlier one adds a `Supersedes: NNNN` line directly
+  under its `Date:` line. `scripts/compass-check.sh` mechanically prefixes the superseded ADR's
+  `INDEX.md` row with `[SUPERSEDED by NNNN]` — this is a deterministic string operation on explicit
+  metadata, not an inference about whether two decisions conflict.
+- **`current-state.md` anchor:** carries a `Commit: <hash>` line under its `Date:` line, stamped by
+  `wrap-up` at the commit it was last written against — mirrors the `Commits: <range>` field already
+  used in `logs/` entries. Lets `warm-up`/the `SessionStart` hook check staleness by commit count
+  instead of by inference.
 
 ---
 
@@ -135,7 +158,13 @@ Rules:
 
 - `warm-up` — reads `INDEX.md`, `context/current-state.md`, + relevant slices to prime a session. Read-only.
 - `wrap-up` — at task end, drafts a `logs/` entry (+ any ADRs, + `INDEX.md` update), I review, commit.
+  Also runs `scripts/compass-check.sh --fix` (archives overflow, stamps `Commit:`) and, before writing a
+  new `learnings/` entry, `tools/learning-dedup/check_similarity.py` (see dedup note above) — both
+  deterministic steps, not judgment calls left to the skill.
 - `new-experiment` — scaffolds an `experiments/` entry from a run's config/results.
 - `promote` — moves a private-first entry into the shared set.
 
 All capture is **command-triggered and human-reviewed**. Agents never silently write `.compass/`.
+`scripts/compass-check.sh` (check-only, no `--fix`) also runs as this repo's own local `.git/hooks/pre-commit`
+— a backstop that blocks a commit on a real violation independent of whether `wrap-up`'s steps were
+followed correctly.

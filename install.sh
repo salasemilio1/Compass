@@ -7,6 +7,11 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Override for testing/isolation -- defaults to the real global Claude Code config dir.
+COMPASS_HOME="${COMPASS_HOME:-$HOME/.claude}"
+
+DEV_MODE=0
+
 # --- logging ------------------------------------------------------------------
 
 if [ -t 1 ]; then
@@ -55,6 +60,39 @@ create_symlink() {
   log_success "linked: $(basename "$target_path")"
 }
 
+# --- install source guard ------------------------------------------------------
+#
+# Global skills/hook symlinks point at whatever checkout this script runs from. If that's
+# an arbitrary dev clone (not the canonical $DOTFILES/compass), a destructive git operation
+# there (reset --hard, branch delete, force-push) breaks compass globally, not just locally.
+# Refuse by default; --dev is the explicit escape hatch for iterating on compass itself.
+
+check_install_source() {
+  local resolved_script_dir
+  resolved_script_dir="$(cd "$SCRIPT_DIR" && pwd -P)"
+
+  if [ -n "${DOTFILES:-}" ] && [ -d "$DOTFILES/compass" ]; then
+    local canonical
+    canonical="$(cd "$DOTFILES/compass" && pwd -P)"
+    if [ "$resolved_script_dir" = "$canonical" ]; then
+      return 0
+    fi
+  fi
+
+  if [ "$DEV_MODE" -eq 1 ]; then
+    log_warn "dev install: symlinking global skills from a non-canonical checkout:"
+    log_warn "  $resolved_script_dir"
+    log_warn "this is not \$DOTFILES/compass -- a destructive git operation here (reset --hard,"
+    log_warn "branch delete, force-push) will break compass globally until reinstalled from canonical"
+    return 0
+  fi
+
+  log_error "refusing to install from a non-canonical path: $resolved_script_dir"
+  log_error "expected \$DOTFILES/compass (\$DOTFILES=${DOTFILES:-<unset>})"
+  log_error "if you're intentionally developing compass here, re-run with: install.sh --dev"
+  return 1
+}
+
 # --- prerequisites ------------------------------------------------------------
 
 check_prerequisites() {
@@ -85,7 +123,7 @@ SKILLS=(warm-up wrap-up init-compass)
 
 link_skills() {
   local skills_src="$SCRIPT_DIR/skills"
-  local skills_dst="$HOME/.claude/skills"
+  local skills_dst="$COMPASS_HOME/skills"
   mkdir -p "$skills_dst"
 
   for skill in "${SKILLS[@]}"; do
@@ -98,20 +136,19 @@ link_skills() {
 link_hook() {
   create_symlink \
     "$SCRIPT_DIR/hooks/compass-session-start.sh" \
-    "$HOME/.claude/hooks/compass-session-start.sh" || true
+    "$COMPASS_HOME/hooks/compass-session-start.sh" || true
 }
 
 # --- settings.json ------------------------------------------------------------
 
-HOOK_COMMAND='$HOME/.claude/hooks/compass-session-start.sh'
-
 settings_has_hook() {
-  local settings_file="$HOME/.claude/settings.json"
+  local settings_file="$COMPASS_HOME/settings.json"
   [ -f "$settings_file" ] && grep -q "compass-session-start.sh" "$settings_file"
 }
 
 register_hook() {
-  local settings_file="$HOME/.claude/settings.json"
+  local settings_file="$COMPASS_HOME/settings.json"
+  local hook_command="$COMPASS_HOME/hooks/compass-session-start.sh"
 
   if settings_has_hook; then
     log_success "SessionStart hook already registered"
@@ -122,7 +159,7 @@ register_hook() {
     log_warn "jq not found — skipping automatic settings.json update"
     log_warn "add this block to ~/.claude/settings.json manually:"
     printf '    "hooks": {\n'
-    printf '      "SessionStart": [{"hooks": [{"type": "command", "command": "%s"}]}]\n' "$HOOK_COMMAND"
+    printf '      "SessionStart": [{"hooks": [{"type": "command", "command": "%s"}]}]\n' "$hook_command"
     printf '    }\n'
     return 0
   fi
@@ -131,7 +168,7 @@ register_hook() {
 
   if [ ! -f "$settings_file" ]; then
     jq -n \
-      --arg cmd "$HOOK_COMMAND" \
+      --arg cmd "$hook_command" \
       '{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": $cmd}]}]}}' \
       > "$settings_file"
     log_success "created $settings_file with SessionStart hook"
@@ -140,7 +177,7 @@ register_hook() {
 
   local tmp
   tmp="$(mktemp)"
-  jq --arg cmd "$HOOK_COMMAND" \
+  jq --arg cmd "$hook_command" \
     '.hooks.SessionStart += [{"hooks": [{"type": "command", "command": $cmd}]}]' \
     "$settings_file" > "$tmp" && mv "$tmp" "$settings_file"
   log_success "added SessionStart hook to $settings_file"
@@ -209,6 +246,13 @@ install_graphify() {
 # --- main ---------------------------------------------------------------------
 
 main() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --dev) DEV_MODE=1; shift ;;
+      *) shift ;;
+    esac
+  done
+
   log_info "compass install (from: $SCRIPT_DIR)"
   echo
 
@@ -220,15 +264,21 @@ main() {
   fi
   echo
 
-  log_info "skills  (~/.claude/skills/)"
+  log_info "install source"
+  if ! check_install_source; then
+    exit 1
+  fi
+  echo
+
+  log_info "skills  ($COMPASS_HOME/skills/)"
   link_skills
   echo
 
-  log_info "hook  (~/.claude/hooks/)"
+  log_info "hook  ($COMPASS_HOME/hooks/)"
   link_hook
   echo
 
-  log_info "SessionStart hook  (~/.claude/settings.json)"
+  log_info "SessionStart hook  ($COMPASS_HOME/settings.json)"
   register_hook
   echo
 
@@ -248,4 +298,8 @@ main() {
   log_info "  see README.md for the full guide"
 }
 
-main "$@"
+# Allows tests to `source` this file for its functions (check_install_source, etc.)
+# without running the full install (which does real network/MCP side effects).
+if [ "${COMPASS_TEST_SOURCE:-0}" != "1" ]; then
+  main "$@"
+fi

@@ -37,21 +37,39 @@ Never write `.compass/` silently.
      the next wrap-up has a clean anchor. Cover: why · what changed · assumptions changed · learnings ·
      breaking changes.
    - **`experiments/YYYY-MM-DD-slug.md`** — if ML runs happened. Or invoke `new-experiment`.
-   - **`decisions/NNNN-slug.md`** — for notable choices: context · decision · alternatives · consequences.
+   - **`decisions/NNNN-slug.md`** — for notable choices: context · decision · alternatives ·
+     consequences. If this decision replaces an earlier ADR, add a `Supersedes: NNNN` line under
+     `Date:` (see `compass/SPEC.md` §5) — `compass-check.sh` (step 4a) marks the old one automatically.
    - **`learnings/slug.md`** — durable gotchas worth never repeating.
    - **`context/current-state.md`** — **for in-progress projects**: where the work stands, what's in
-     flight, known issues, and concrete next steps. Living doc — overwrite, don't append.
+     flight, known issues, and concrete next steps. Living doc — overwrite, don't append. Don't hand-write
+     the `Commit:` line — `compass-check.sh --fix` (step 4a) stamps it.
 
-4. **Update `INDEX.md`** — add a one-line row for each new entry (newest first for `logs`/`experiments`),
+4. **Before finalizing a new `learnings/` entry, run the dedup check** (guarded by
+   `command -v uv`):
+   ```
+   uv run tools/learning-dedup/check_similarity.py .compass "<the drafted learning's text>"
+   ```
+   `DUPLICATE`/`POSSIBLE_DUPLICATE` → surface it in the review presentation ("this looks like/similar to
+   `learnings/X.md` (score) — update that instead of a new file?") instead of silently adding a
+   duplicate. `UNAVAILABLE` (no `uv`, offline, etc.) → note it once and proceed normally; this check is
+   a gentle filter, never a gate.
+
+5. **Update `INDEX.md`** — add a one-line row for each new entry (newest first for `logs`/`experiments`),
    refresh the `Updated:` date, update `Start here` pointers if they changed.
 
-5. **Respect visibility** (see `compass/SPEC.md`): `context`/`architecture`/`decisions` are shared;
+6. **Respect visibility** (see `compass/SPEC.md`): `context`/`architecture`/`decisions` are shared;
    `experiments`/`logs`/`learnings` are private-first; `scratch` is gitignored.
 
-6. **Present every draft for review.** Show files and contents. Apply edits. Only then write to disk.
+7. **Present every draft for review.** Show files and contents. Apply edits. Only then write to disk.
    If mode is `committed`, offer to stage (not commit unless asked).
 
-7. **Keep it concise.** Retrieval aids, not transcripts. Follow `coding-style.md` conventions in prose.
+8. **Run `scripts/compass-check.sh --fix .compass`** — mandatory, not optional, run immediately after
+   writing to disk. This archives any `logs`/`experiments` overflow past the cap, marks superseded ADRs,
+   and stamps `current-state.md`'s `Commit:` line. Deterministic — no judgment call left for the skill
+   to make here.
+
+9. **Keep it concise.** Retrieval aids, not transcripts. Follow `coding-style.md` conventions in prose.
 
 ## Output
 A short summary of what was captured and where, so the user can confidently end the session.

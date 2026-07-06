@@ -43,8 +43,11 @@ template, then seeding it with what's already knowable about the project. The fu
 
 7. **Create `AGENTS.md` in the repo root.** This makes the repo immediately usable by any agent
    (Claude, Gemini, Cursor, Copilot, etc.), not just Claude Code. The file should be short — point to
-   compass and state the behavioral defaults:
+   compass and state the behavioral defaults. Stamp it with the compass spec version being scaffolded
+   from (see `compass/SPEC.md`'s `**Spec version:**` line) so `scripts/compass-check.sh` can later warn
+   if this repo's copy drifts behind the spec it was set up against:
    ```markdown
+   <!-- compass-spec-version: 1 -->
    # Agent instructions
 
    This repo uses the compass protocol for agent memory. Before substantial work:
@@ -56,7 +59,8 @@ template, then seeding it with what's already knowable about the project. The fu
 
    Coding behavior and style: see `$DOTFILES/claude/AGENTS.md` or ask the repo owner for conventions.
    ```
-   If `AGENTS.md` already exists, append the compass section rather than overwriting.
+   If `AGENTS.md` already exists, append the compass section (including the spec-version comment)
+   rather than overwriting.
 
 8. **Point CLAUDE.md at compass.** If the repo has a `CLAUDE.md`, add a short line directing agents to
    read `.compass/INDEX.md` first. If it doesn't, offer to create a minimal one that does so.
