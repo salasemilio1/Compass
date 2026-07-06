@@ -4,7 +4,7 @@
 > repo so sessions start informed instead of cold, plus skills to load/save it (`warm-up`, `wrap-up`,
 > `init-compass`) and a `SessionStart` hook that nudges agents to use it.
 
-**Stack:** bash (install script, hook, checks), Python (learnings dedup), Markdown (skills, spec, template)   ·   **Mode:** committed   ·   **Updated:** 2026-07-06
+**Stack:** bash (install script, hook, checks), Python (learnings dedup), Markdown (skills, spec, template)   ·   **Mode:** committed   ·   **Updated:** 2026-07-06 (dedup calibration)
 
 ## Start here
 - New to the project? Read: [context/overview.md](context/overview.md), [SPEC.md](../SPEC.md)
@@ -24,6 +24,7 @@
 ## decisions
 - [0001-graphify-deterministic-only.md](decisions/0001-graphify-deterministic-only.md) — graphify wiring uses only its deterministic mode (no LLM/backend), for zero-cost always-fresh navigation
 - [0002-close-audited-gaps-with-deterministic-scripts.md](decisions/0002-close-audited-gaps-with-deterministic-scripts.md) — closed 5 audited bloat/staleness gaps with compass-check.sh + a 3-stage learnings-dedup filter; rejected Caveman/Headroom/semantic-tool-selection as the wrong layer
+- [0003-learnings-dedup-always-runs-stage3.md](decisions/0003-learnings-dedup-always-runs-stage3.md) — dropped the confidently-novel lexical short-circuit after real-content calibration found true paraphrases it silently missed
 
 ## experiments
 <!-- newest first; one line: model + headline result -->
@@ -31,10 +32,12 @@
 
 ## logs
 <!-- newest first -->
+- [2026-07-06-dedup-calibration-and-wrapup-ux.md](logs/2026-07-06-dedup-calibration-and-wrapup-ux.md) — calibrated learnings-dedup against real content, closed the residual paraphrase gap (decisions/0003), streamlined wrap-up's review flow
 - [2026-07-06-close-audited-gaps.md](logs/2026-07-06-close-audited-gaps.md) — deterministic checker/fixer + install guard + staleness hook + learnings-dedup filter, closing 5 audited gaps
 - [2026-07-06-graphify-integration.md](logs/2026-07-06-graphify-integration.md) — wired graphify in as a deterministic-only navigation layer, auto-refreshed via the SessionStart hook
 
 ## learnings
+- [test-assertions-must-encode-intent-not-observed-output.md](learnings/test-assertions-must-encode-intent-not-observed-output.md) — decide the correct expected value from spec/intent before running the code; never shape an assertion (or a mock feeding one) to match observed output
 - [bash-pipefail-empty-substitution.md](learnings/bash-pipefail-empty-substitution.md) — guard `var=$(grep|awk)` with `|| true` under `set -euo pipefail`, or an expected "not found" kills the script
 - [test-helper-naming-must-avoid-test-glob.md](learnings/test-helper-naming-must-avoid-test-glob.md) — a shared test helper named `test_*.sh` gets silently "run" (and passes) by a glob-based test runner
 - [plan-approval-does-not-blanket-authorize-actions.md](learnings/plan-approval-does-not-blanket-authorize-actions.md) — approving a plan doesn't pre-authorize every action in it; the permission classifier can still deny individually

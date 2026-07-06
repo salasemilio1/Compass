@@ -9,10 +9,13 @@
 Three-stage dedup filter for .compass/learnings/*.md (gap B2 -- gentle, non-blocking).
 
 Stage 1 (exact hash) and stage 2 (lexical Jaccard) are fully deterministic, no model.
-Stage 3 (embedding similarity) only runs when stages 1-2 are genuinely ambiguous -- the
-model is a last resort, not called on every run. Cosine is plain Python (no numpy): the
-core logic here has zero external dependencies, so it stays testable without fastembed
-installed. Only the real embedder (invoked via `uv run`, wired in main()) needs it.
+Stage 3 (embedding similarity) runs whenever stage 1/2 didn't already produce a confident
+verdict (exact hash or high lexical overlap) -- including when the lexical score is low,
+since a genuine paraphrase can share almost no vocabulary with the learning it duplicates.
+Only the exact/lexical-high short-circuits skip the model; everything else falls through to
+it. Cosine is plain Python (no numpy): the core logic here has zero external dependencies,
+so it stays testable without fastembed installed. Only the real embedder (invoked via
+`uv run`, wired in main()) needs it.
 
 Usage: check_similarity.py <compass_dir> <candidate_text_or_@file>
 Prints one of: DUPLICATE <file> exact:1.00 | POSSIBLE_DUPLICATE <file> lexical:<score> |
@@ -30,7 +33,6 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 LEXICAL_HIGH = 0.6   # >= this: confident lexical duplicate, stop
-LEXICAL_LOW = 0.1    # <= this (best match): confidently novel, skip the model entirely
 EMBEDDING_THRESHOLD = 0.80  # empirical near-duplicate cutoff for MiniLM on short text
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
@@ -119,10 +121,12 @@ def find_duplicates(
 ):
     """Returns (finding_or_None, stage3_needed_but_unavailable: bool).
 
-    Stage 3 only runs (and the second element is always False) when `embed_fn` is given
-    and stage 2 was genuinely ambiguous. If stage 2 is ambiguous but no `embed_fn` was
-    passed, the caller gets (None, True) so it can decide whether to fetch one (e.g. load
-    the real model) rather than this function silently skipping the hard case.
+    Stage 3 runs (and the second element is always False) whenever `embed_fn` is given and
+    stage 1/2 didn't already produce a confident verdict -- a low lexical score does NOT
+    skip it, since a true paraphrase can share almost no vocabulary with the learning it
+    duplicates. If no `embed_fn` was passed and stage 1/2 wasn't confident, the caller gets
+    (None, True) so it can decide whether to fetch one (e.g. load the real model) rather than
+    this function silently skipping the hard case.
     """
     candidate_norm = normalize(candidate_text)
     existing_norm = [(f, normalize(t)) for f, t in existing]
@@ -130,6 +134,9 @@ def find_duplicates(
     finding = hash_match(candidate_norm, existing_norm)
     if finding is not None:
         return finding, False
+
+    if not existing_norm:
+        return None, False
 
     best_file, best_score = None, 0.0
     for file, norm_text in existing_norm:
@@ -139,10 +146,7 @@ def find_duplicates(
 
     if best_score >= LEXICAL_HIGH:
         return Finding(best_file, "lexical", best_score), False
-    if best_score <= LEXICAL_LOW or not existing_norm:
-        return None, False
 
-    # ambiguous band
     if embed_fn is None:
         return None, True
 

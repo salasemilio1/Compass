@@ -61,15 +61,26 @@ Never write `.compass/` silently.
 6. **Respect visibility** (see `compass/SPEC.md`): `context`/`architecture`/`decisions` are shared;
    `experiments`/`logs`/`learnings` are private-first; `scratch` is gitignored.
 
-7. **Present every draft for review.** Show files and contents. Apply edits. Only then write to disk.
-   If mode is `committed`, offer to stage (not commit unless asked).
+7. **Summarize, don't dump — then ask everything at once.** Wrap-up usually runs when the user is
+   already low on context or ready to end the session; don't drag that out. Do not paste full file
+   contents into the conversation by default. Instead:
+   - Give a **2-3 sentence summary** per artifact (what it captures, not its full text) — e.g. "1 log
+     entry: closed the pre-commit backstop gap. 1 learning: `.git/hooks` writes need explicit
+     go-ahead even after plan approval. `current-state.md` rewritten to reflect that."
+   - Ask **one consolidated round of questions** covering write / commit / push together (e.g. via
+     `AskUserQuestion`, one question per action with sensible defaults), instead of asking after each
+     step in sequence. If mode isn't `committed`, drop the commit/push questions entirely.
+   - Only show a file's full contents if the user asks to see it, or flags something as suspicious.
+   - Execute whatever combination was approved, then stop — don't re-open the round for confirmation
+     on each individual git command (`add`, `commit`, `push`) once the batch answer covers it.
 
 8. **Run `scripts/compass-check.sh --fix .compass`** — mandatory, not optional, run immediately after
-   writing to disk. This archives any `logs`/`experiments` overflow past the cap, marks superseded ADRs,
-   and stamps `current-state.md`'s `Commit:` line. Deterministic — no judgment call left for the skill
-   to make here.
+   writing to disk (before the commit step, if committing). This archives any `logs`/`experiments`
+   overflow past the cap, marks superseded ADRs, and stamps `current-state.md`'s `Commit:` line.
+   Deterministic — no judgment call left for the skill to make here.
 
 9. **Keep it concise.** Retrieval aids, not transcripts. Follow `coding-style.md` conventions in prose.
 
 ## Output
-A short summary of what was captured and where, so the user can confidently end the session.
+A short summary of what was captured, committed, and/or pushed (per step 7's batch decision), so the
+session can end without further back-and-forth.
