@@ -10,6 +10,13 @@ if [ -d ".compass" ]; then
 
   if [ -f "graphify-out/graph.json" ]; then
     context="$context A graphify structural graph is also available at graphify-out/ -- prefer running graphify query over grepping for mechanical structural lookups (what calls what, where things live)."
+
+    # graphify's code-only "update" is fully deterministic (tree-sitter + markdown parsing,
+    # no LLM, no network) so it's safe to refresh unconditionally in the background. Only
+    # runs when graphify-out/ already exists -- the first build stays an explicit action.
+    if command -v graphify >/dev/null 2>&1; then
+      ( graphify update . >/dev/null 2>&1 & disown ) 2>/dev/null || true
+    fi
   fi
 
   context_escaped="${context//\\/\\\\}"

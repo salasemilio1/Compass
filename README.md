@@ -62,16 +62,9 @@ Run `claude mcp list` to confirm it's active. Once installed, Claude Code will u
 | **context-mode** | Keeps large tool output (diffs, test runs, build logs) out of your session window |
 | **compass** | "Why was this built this way? What did we decide? What's the status?" — curated, human-reviewed |
 
-`install.sh` installs graphify's CLI/skill for you (`uv tool install graphifyy && graphify install`, or `pipx`/`pip` as a fallback). Code files (`.py`, `.json`, `.sh`, etc.) are parsed locally via tree-sitter — no LLM calls. Only prose files (`.md`, `.txt`, `.rst`) go through an LLM for concept/relationship extraction.
+`install.sh` installs graphify's CLI/skill for you (`uv tool install graphifyy && graphify install`, or `pipx`/`pip` as a fallback). compass deliberately uses only graphify's **deterministic** mode — `graphify update <path>` — which parses code via tree-sitter and markdown structure/links via regex. No LLM, no API key, no network call, no backend to configure. graphify also supports a semantic LLM-extraction layer for richer cross-document relationships, but compass doesn't wire that in: it adds a dependency and latency/cost tradeoff that isn't worth it for a tool meant to be easy and orthogonal. If you want that layer, run graphify directly outside of compass's wiring.
 
-To keep that LLM call local instead of hitting a cloud API, point graphify at Ollama:
-
-```bash
-export OLLAMA_BASE_URL=http://localhost:11434/v1
-export OLLAMA_MODEL=<your pulled model>   # e.g. qwen2.5-coder:7b
-```
-
-With no cloud API key set in your environment, graphify auto-detects Ollama. If a cloud key is present, pass `--backend ollama` explicitly. `warm-up` will use an existing `graphify-out/graph.json` for structural lookups when present, and stays silent about it otherwise.
+Once you've built a graph once (`graphify update .` in the target repo), the `SessionStart` hook keeps it fresh automatically — it re-runs `graphify update .` in the background on every session start, silently, since it's free and instant. `warm-up` prefers `graphify query` over grepping for structural lookups when a graph exists, and stays silent about it otherwise.
 
 ## What gets installed
 
