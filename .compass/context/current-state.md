@@ -1,50 +1,57 @@
 # current state
 
-Date: 2026-07-06
-Commit: f01c3c9e8b0bb594a53c2d2e9d662361aab82952
+Date: 2026-07-07
+Commit: 088c2d4dbcf7899eb494c31431f8b9e14fa9f7da
 
 ## Where things stand
-Two threads are live on the `graphify-integration` branch (unmerged, `main` untouched):
+Four threads are live on the `graphify-integration` branch (unmerged, `main` untouched):
 
 1. **graphify pilot** -- integration complete (ADR 0001, deterministic-only mode). Still mid-pilot:
-   using `graphify query` day-to-day to see if it earns its keep before merge/revert.
-2. **Deterministic hardening of compass itself** -- an audit found five places prompt-only discipline
-   could let compass drift toward bloat/staleness. Closed via `scripts/compass-check.sh` (INDEX
-   archival, ADR supersession, current-state Commit: anchor), `install.sh`'s canonical-source guard, a
-   staleness check in the SessionStart hook, and a three-stage learnings-dedup filter. See decisions/0002
-   and logs/2026-07-06-close-audited-gaps.md.
-3. **Learnings-dedup calibrated against real content** -- 10 hard-case tests built from this repo's
-   actual `.compass/learnings/*.md` content found two real (not hypothetical) false negatives in the
-   "confidently novel, skip the model" short-circuit. Dropped that short-circuit -- stage 3 now runs on
-   every candidate stage 1/2 doesn't already confidently resolve. See decisions/0003 and
-   logs/2026-07-06-dedup-calibration-and-wrapup-ux.md. All tests passing (28 + 12 bash checks, 35 pytest
-   cases).
+   using `graphify query` day-to-day to see if it earns its keep before merge/revert. As of this
+   session, actual usage has been low -- see thread 4.
+2. **Deterministic hardening of compass itself** -- closed via `scripts/compass-check.sh`, install
+   guard, staleness hook, learnings-dedup filter. See decisions/0002, 0003 and prior logs. Stable,
+   no open work.
+3. **Context-usage nudge, built and installed this session** -- replaced the ADE repo's turn-count
+   `Stop` hook with a token-based one (`hooks/session-context-nudge.py` +
+   `tools/session-context/session_status.py`), reading the transcript's real API `usage` data (no
+   tokenization). Nudges once at 75% of a 200k context window. Installed for real in
+   `~/.claude/settings.json` (not just this repo's checkout). See logs/2026-07-07-context-usage-nudge.md.
+   **Needs a fresh session to activate** -- Claude Code loads hook config at session start and can't
+   hot-swap (learnings/hooks-require-session-restart.md).
+4. **Agent's own context-mode/graphify usage was found to be low** -- an in-session audit found the
+   agent defaulting to plain `Bash` with manual truncation instead of `ctx_execute`, and never calling
+   `graphify query` at all despite a structural-lookup opportunity. Fixed via a standing behavioral
+   memory (`feedback_treat_context_as_cache.md`, in agent memory, not this repo) instructing the agent
+   to default to these tools whenever it wouldn't degrade response quality. decisions/0004 designs a
+   deterministic way to verify this actually saves tokens, using real transcripts -- not yet built.
 
 ## In flight
-- The graphify pilot itself (unchanged from before).
-- **This repo's own local `.git/hooks/pre-commit` backstop is not yet installed** -- the auto-mode
-  permission classifier blocked writing it during the hardening session, even though it was named in
-  the approved plan. Needs an explicit go-ahead; the exact command is in the prior session's summary
-  (or just re-ask for it).
-- **wrap-up's review flow was streamlined** (skills/wrap-up/SKILL.md step 7): summarize each artifact
-  in 2-3 sentences, one consolidated write/commit/push question round, no full-content dump by default.
-- **The global `new-test`/`audit-tests` skills gained a 6th rule** (assert correct behavior, not
-  observed behavior) in the separate dotfiles repo (`$DOTFILES`, not this checkout) -- those edits are
-  uncommitted there as of this session; that repo's own commit is out of scope for this repo's wrap-up.
+- **decisions/0004's `tool_efficiency.py` is designed but not implemented.** Attributes per-turn token
+  deltas to the tool calls that preceded them (Bash vs. ctx_execute vs. graphify), aggregated by tool
+  name, reusing `session_status.py`'s transcript-loading helpers. Next concrete task if picking this
+  thread back up.
+- **Uncommitted**: everything from this session (session-context-nudge feature + install.sh/jq->python3
+  swap + decisions/0004 + this file) is still working-tree changes as of this wrap-up, pending the
+  user's commit/push decision.
+- The graphify pilot itself continues in parallel -- now with a behavioral nudge to actually use it,
+  worth revisiting whether usage picks up in future sessions.
+- **This repo's own local `.git/hooks/pre-commit` backstop is still not installed** (carried over from
+  a prior session, unrelated to this one's work) -- needs an explicit go-ahead.
 
 ## Known issues / things to remember
-- Global `~/.claude/skills/*` and the `SessionStart` hook are currently symlinked to *this* repo on the
-  `graphify-integration` branch (from running `install.sh` here during the pilot) — not wherever your
-  usual dotfiles-managed compass install normally lives. Backups of the previous symlinks exist
-  (`*.backup-20260704100310`) if you need to revert before merging. Note: `install.sh` will now refuse
-  to re-run from here without `--dev`, since this checkout isn't `$DOTFILES/compass`.
-- `graphify-out/` is gitignored and regenerable — a fresh clone needs one `graphify update .` to
-  bootstrap it before the auto-refresh hook has anything to refresh.
-- `.compass/learnings/.embedding-cache.json` is gitignored and regenerable (dedup tool's vector cache).
+- Global `~/.claude/skills/*` and hooks are symlinked to *this* repo on the `graphify-integration`
+  branch (from running `install.sh --dev` here) -- not the usual `$DOTFILES`-managed install.
+  `install.sh` refuses to re-run from here without `--dev` since this checkout isn't `$DOTFILES/compass`.
+- `install.sh` now hard-requires `python3` (added this session, replacing a `jq` dependency for hook
+  registration) in addition to `git`/`claude`.
+- `graphify-out/` and `.compass/learnings/.embedding-cache.json` are gitignored/regenerable, as before.
 
 ## Next steps
-- Decide on the `.git/hooks/pre-commit` backstop (install it, or explicitly skip it).
-- Commit the `new-test`/`audit-tests` SKILL.md edits in the dotfiles repo (separate repo, separate
-  commit) if they haven't been already.
-- Continue the graphify pilot: use `graphify query` in real sessions for a few days, then merge or
-  revert per the original plan.
+- Start a new session and confirm the token-based `Stop` hook actually fires near the 75% threshold.
+- Decide on the `.git/hooks/pre-commit` backstop (install it, or explicitly skip it) -- carried over,
+  unrelated to this session.
+- Build `tool_efficiency.py` per decisions/0004 once a few real sessions (with the behavioral fix in
+  effect) have accumulated transcript data worth aggregating.
+- Continue the graphify pilot; revisit merge/revert once both the pilot and the new behavioral nudge
+  have had a real trial run.

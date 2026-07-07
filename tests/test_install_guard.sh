@@ -65,6 +65,7 @@ echo "-- smoke test: linking steps land under an isolated COMPASS_HOME"
     link_skills
     link_hook
     register_hook
+    register_context_nudge_hook
   " 2>&1)"
   rc=$?
   assert_eq "0" "$rc" "smoke: guarded linking steps succeed"
@@ -72,15 +73,28 @@ echo "-- smoke test: linking steps land under an isolated COMPASS_HOME"
   assert_eq "1" "$([ -L "$home/skills/warm-up" ] && echo 1 || echo 0)" "smoke: warm-up skill symlinked"
   assert_eq "$REPO_ROOT/skills/warm-up" "$(readlink "$home/skills/warm-up" 2>/dev/null || echo MISSING)" "smoke: warm-up symlink points at this checkout"
   assert_eq "1" "$([ -L "$home/hooks/compass-session-start.sh" ] && echo 1 || echo 0)" "smoke: SessionStart hook symlinked"
+  assert_eq "1" "$([ -L "$home/hooks/session-context-nudge.py" ] && echo 1 || echo 0)" "smoke: Stop hook (session-context-nudge.py) symlinked"
+  assert_eq "1" "$([ -L "$home/tools/session-context" ] && echo 1 || echo 0)" "smoke: tools/session-context symlinked"
 
-  if command -v jq >/dev/null 2>&1; then
-    assert_file_contains "$home/settings.json" "compass-session-start.sh" "smoke: settings.json registers the hook (jq path)"
-    assert_file_contains "$home/settings.json" "$home/hooks/compass-session-start.sh" "smoke: settings.json points at the isolated COMPASS_HOME, not the real one"
-  else
-    assert_file_contains <(echo "$out") "jq not found" "smoke: no jq -- falls back to manual instructions instead of failing"
-  fi
+  assert_file_contains "$home/settings.json" "compass-session-start.sh" "smoke: settings.json registers the SessionStart hook"
+  assert_file_contains "$home/settings.json" "$home/hooks/compass-session-start.sh" "smoke: settings.json points at the isolated COMPASS_HOME, not the real one"
+  assert_file_contains "$home/settings.json" "session-context-nudge.py" "smoke: settings.json registers the Stop hook"
 
   echo "  note: real \$HOME/.claude was never referenced by this test (COMPASS_HOME overridden throughout)"
+}
+
+echo "-- register_event_hook: without python3, fails loudly instead of silently skipping"
+{
+  home="$(new_tmpdir)"
+  out="$(COMPASS_HOME="$home" COMPASS_TEST_SOURCE=1 bash -c "
+    source '$INSTALL_SH'
+    command_exists() { [ \"\$1\" != 'python3' ]; }
+    register_context_nudge_hook
+  " 2>&1)"
+  rc=$?
+  assert_eq "1" "$rc" "no python3: register_event_hook exits 1 (not a silent skip)"
+  assert_file_contains <(echo "$out") "python3 not found" "no python3: error names the missing dependency"
+  assert_file_contains <(echo "$out") "add this block" "no python3: still prints manual fallback instructions"
 }
 
 report_and_exit

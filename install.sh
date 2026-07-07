@@ -114,6 +114,13 @@ check_prerequisites() {
     failed=1
   fi
 
+  if command_exists python3; then
+    log_success "python3: $(python3 --version 2>&1)"
+  else
+    log_error "python3 is required (used to register hooks and by the session-context hook itself)"
+    failed=1
+  fi
+
   return $failed
 }
 
@@ -137,50 +144,62 @@ link_hook() {
   create_symlink \
     "$SCRIPT_DIR/hooks/compass-session-start.sh" \
     "$COMPASS_HOME/hooks/compass-session-start.sh" || true
+  create_symlink \
+    "$SCRIPT_DIR/hooks/session-context-nudge.py" \
+    "$COMPASS_HOME/hooks/session-context-nudge.py" || true
+  create_symlink \
+    "$SCRIPT_DIR/tools/session-context" \
+    "$COMPASS_HOME/tools/session-context" || true
 }
 
 # --- settings.json ------------------------------------------------------------
 
 settings_has_hook() {
+  local marker="$1"
   local settings_file="$COMPASS_HOME/settings.json"
-  [ -f "$settings_file" ] && grep -q "compass-session-start.sh" "$settings_file"
+  [ -f "$settings_file" ] && grep -q "$marker" "$settings_file"
 }
 
-register_hook() {
+register_event_hook() {
+  local event="$1"
+  local hook_command="$2"
+  local marker="$3"
   local settings_file="$COMPASS_HOME/settings.json"
-  local hook_command="$COMPASS_HOME/hooks/compass-session-start.sh"
 
-  if settings_has_hook; then
-    log_success "SessionStart hook already registered"
+  if settings_has_hook "$marker"; then
+    log_success "$event hook already registered"
     return 0
   fi
 
-  if ! command_exists jq; then
-    log_warn "jq not found — skipping automatic settings.json update"
-    log_warn "add this block to ~/.claude/settings.json manually:"
+  if ! command_exists python3; then
+    log_error "python3 not found — cannot register the $event hook automatically"
+    log_error "add this block to $settings_file manually:"
     printf '    "hooks": {\n'
-    printf '      "SessionStart": [{"hooks": [{"type": "command", "command": "%s"}]}]\n' "$hook_command"
+    printf '      "%s": [{"hooks": [{"type": "command", "command": "%s"}]}]\n' "$event" "$hook_command"
     printf '    }\n'
-    return 0
+    return 1
   fi
 
   mkdir -p "$(dirname "$settings_file")"
 
-  if [ ! -f "$settings_file" ]; then
-    jq -n \
-      --arg cmd "$hook_command" \
-      '{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": $cmd}]}]}}' \
-      > "$settings_file"
-    log_success "created $settings_file with SessionStart hook"
+  if python3 "$SCRIPT_DIR/scripts/register_hook.py" "$settings_file" "$event" "$hook_command"; then
+    log_success "added $event hook to $settings_file"
     return 0
   fi
 
-  local tmp
-  tmp="$(mktemp)"
-  jq --arg cmd "$hook_command" \
-    '.hooks.SessionStart += [{"hooks": [{"type": "command", "command": $cmd}]}]' \
-    "$settings_file" > "$tmp" && mv "$tmp" "$settings_file"
-  log_success "added SessionStart hook to $settings_file"
+  log_error "failed to update $settings_file — add this block manually:"
+  printf '    "hooks": {\n'
+  printf '      "%s": [{"hooks": [{"type": "command", "command": "%s"}]}]\n' "$event" "$hook_command"
+  printf '    }\n'
+  return 1
+}
+
+register_hook() {
+  register_event_hook "SessionStart" "$COMPASS_HOME/hooks/compass-session-start.sh" "compass-session-start.sh"
+}
+
+register_context_nudge_hook() {
+  register_event_hook "Stop" "$COMPASS_HOME/hooks/session-context-nudge.py" "session-context-nudge.py"
 }
 
 # --- context-mode MCP ---------------------------------------------------------
@@ -280,6 +299,10 @@ main() {
 
   log_info "SessionStart hook  ($COMPASS_HOME/settings.json)"
   register_hook
+  echo
+
+  log_info "Stop hook: context-usage nudge  ($COMPASS_HOME/settings.json)"
+  register_context_nudge_hook
   echo
 
   log_info "context-mode MCP (token efficiency)"
