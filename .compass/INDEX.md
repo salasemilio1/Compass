@@ -15,7 +15,7 @@
 
 ## context
 <!-- one line per entry; this is a retrieval hint, not a summary -->
-- [current-state.md](context/current-state.md) — piloting graphify-integration branch, unmerged; token-based context-usage nudge now installed; awaiting a fresh session + a few real sessions of data before deciding merge/revert and building decisions/0004's efficiency report
+- [current-state.md](context/current-state.md) — piloting graphify-integration branch, unmerged; pre-commit backstop installed and tool_efficiency.py built (decisions/0004), which surfaced a Bash-truncation-vs-ctx measurement bias; next: design a deterministic (non-agent-judgment) routing rule
 - [overview.md](context/overview.md) — what compass is, the three-layer model (compass/context-mode/graphify), repo layout
 
 ## architecture
@@ -33,12 +33,14 @@
 
 ## logs
 <!-- newest first -->
+- [2026-07-07-precommit-backstop-and-tool-efficiency.md](logs/2026-07-07-precommit-backstop-and-tool-efficiency.md) — installed the `.git/hooks/pre-commit` backstop, built `tool_efficiency.py` (decisions/0004), surfaced a Bash-truncation-vs-ctx measurement bias
 - [2026-07-07-context-usage-nudge.md](logs/2026-07-07-context-usage-nudge.md) — built a token-based Stop hook (session_status.py + session-context-nudge.py) replacing ADE's turn-count nudge, swapped jq for python3 in install.sh
 - [2026-07-06-dedup-calibration-and-wrapup-ux.md](logs/2026-07-06-dedup-calibration-and-wrapup-ux.md) — calibrated learnings-dedup against real content, closed the residual paraphrase gap (decisions/0003), streamlined wrap-up's review flow
 - [2026-07-06-close-audited-gaps.md](logs/2026-07-06-close-audited-gaps.md) — deterministic checker/fixer + install guard + staleness hook + learnings-dedup filter, closing 5 audited gaps
 - [2026-07-06-graphify-integration.md](logs/2026-07-06-graphify-integration.md) — wired graphify in as a deterministic-only navigation layer, auto-refreshed via the SessionStart hook
 
 ## learnings
+- [compass-agent-portability-boundary.md](learnings/compass-agent-portability-boundary.md) — `.compass/`/`AGENTS.md`/`SPEC.md` are agent-agnostic and travel with the repo; skills/hooks/session-context tools are Claude-Code-specific and need manual translation
 - [hooks-require-session-restart.md](learnings/hooks-require-session-restart.md) — Claude Code loads hook config once at session start; changes need a new session, can't hot-swap
 - [claude-project-dir-slug-replaces-non-alphanumeric.md](learnings/claude-project-dir-slug-replaces-non-alphanumeric.md) — the `~/.claude/projects/<slug>` slug replaces every non-alphanumeric char with `-`, not just `/`
 - [test-assertions-must-encode-intent-not-observed-output.md](learnings/test-assertions-must-encode-intent-not-observed-output.md) — decide the correct expected value from spec/intent before running the code; never shape an assertion (or a mock feeding one) to match observed output

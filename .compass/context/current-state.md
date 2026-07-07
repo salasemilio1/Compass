@@ -49,9 +49,24 @@ Four threads are live on the `graphify-integration` branch (unmerged, `main` unt
 
 ## Next steps
 - Start a new session and confirm the token-based `Stop` hook actually fires near the 75% threshold.
-- Decide on the `.git/hooks/pre-commit` backstop (install it, or explicitly skip it) -- carried over,
-  unrelated to this session.
-- Build `tool_efficiency.py` per decisions/0004 once a few real sessions (with the behavioral fix in
-  effect) have accumulated transcript data worth aggregating.
 - Continue the graphify pilot; revisit merge/revert once both the pilot and the new behavioral nudge
   have had a real trial run.
+- **Design deterministic Bash-vs-ctx_execute routing.** `tool_efficiency.py` (built this session, see
+  decisions/0004's caveat addendum) surfaced that relying on the agent's own judgment
+  (`feedback_treat_context_as_cache.md`, a system-prompt-level nudge) is inherently non-deterministic
+  and unmeasurable cleanly -- the agent decides per-call whether to truncate via Bash or route to
+  ctx_execute, which is exactly what makes the tool_efficiency comparison apples-to-oranges. Direction
+  floated, not yet decided: a deterministic gate instead of agent discretion -- e.g. an
+  allowlist of small/cheap Bash commands (quick git status/log, single-file greps, short lookups) that
+  stay on Bash, with everything else defaulting to ctx_execute; possibly a file-size/line-count
+  threshold (e.g. more than a few dozen lines forces ctx). Goal: eliminate the biggest muddying
+  factors in context deterministically, not via agent-prompt judgment calls. Needs its own ADR once a
+  concrete mechanism is chosen.
+
+## Completed this session (2026-07-07, second pass)
+- Installed the local `.git/hooks/pre-commit` backstop (runs `compass-check.sh` check-only) --
+  closes the item decisions/0002 left pending; user explicitly approved.
+- Built `tools/session-context/tool_efficiency.py` per decisions/0004: attributes per-turn token
+  deltas to tool calls across all transcripts, reusing `session_status.py`'s `context_total` helper.
+  Ran against all 5 real sessions in this project -- see decisions/0004 for the measurement-bias
+  caveat found while interpreting its output.

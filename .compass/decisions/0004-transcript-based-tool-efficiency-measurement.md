@@ -66,3 +66,25 @@ workload, same philosophy as `session_status.py` and the gap-closing scripts in 
 - This is additive to `tools/session-context/session_status.py`, not a replacement — likely lands
   as a sibling script in the same directory (e.g. `tool_efficiency.py`) reusing its transcript-loading
   helpers.
+
+## Caveat found after building `tool_efficiency.py` (2026-07-07)
+
+Raw per-tool averages from this measurement are **not a fair apples-to-apples comparison** between
+`Bash` and `ctx_execute`/`graphify`, and reading them naively would point the wrong direction:
+
+- The script can only see what's *in* the transcript. When an agent pipes a `Bash` command through
+  `head`/`tail`/`-n` to self-truncate a huge output, the transcript only ever records the truncated
+  result — the tokens that would have been spent without truncation are invisible to this tool. That
+  makes heavily-truncated `Bash` calls look artificially cheap.
+- `ctx_execute`/`graphify` calls are disproportionately reached for on genuinely large/unpredictable
+  output by construction (that's their purpose), so their average will structurally skew higher than
+  `Bash`'s average, which is dominated by many small, untruncated calls (`git status`, `ls`, etc.).
+- Comparing the two tools' raw averages therefore risks concluding "Bash is cheaper" when the honest
+  comparison is "Bash's truncation is hiding the cost it avoided paying, and ctx_execute is being
+  asked to do harder jobs." A same-workload comparison (bucketing by task type, or flagging truncated
+  `Bash` calls as a separate, floor-only bucket) is needed before drawing any conclusion from this
+  tool's output — not yet built.
+
+This doesn't invalidate the tool (it's still ground truth for *what tokens were actually spent*), but
+it does invalidate any conclusion drawn from comparing tool-name averages directly without correcting
+for this selection bias.
