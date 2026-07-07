@@ -4,7 +4,7 @@
 > repo so sessions start informed instead of cold, plus skills to load/save it (`warm-up`, `wrap-up`,
 > `init-compass`) and a `SessionStart` hook that nudges agents to use it.
 
-**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context), Markdown (skills, spec, template)   ·   **Mode:** committed   ·   **Updated:** 2026-07-07 (context-usage nudge)
+**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context), Markdown (skills, spec, template)   ·   **Mode:** committed   ·   **Updated:** 2026-07-07 (fault-tolerance audit)
 
 ## Start here
 - New to the project? Read: [context/overview.md](context/overview.md), [SPEC.md](../SPEC.md)
@@ -33,6 +33,7 @@
 
 ## logs
 <!-- newest first -->
+- [2026-07-07-fault-tolerance-audit.md](logs/2026-07-07-fault-tolerance-audit.md) — stepped-back audit of compass as long-lived software; core deterministic-filter pattern holds, 9 gaps found at the edges (Claude Code format coupling, install topology, cache versioning); backlog now in current-state.md
 - [2026-07-07-precommit-backstop-and-tool-efficiency.md](logs/2026-07-07-precommit-backstop-and-tool-efficiency.md) — installed the `.git/hooks/pre-commit` backstop, built `tool_efficiency.py` (decisions/0004), surfaced a Bash-truncation-vs-ctx measurement bias
 - [2026-07-07-context-usage-nudge.md](logs/2026-07-07-context-usage-nudge.md) — built a token-based Stop hook (session_status.py + session-context-nudge.py) replacing ADE's turn-count nudge, swapped jq for python3 in install.sh
 - [2026-07-06-dedup-calibration-and-wrapup-ux.md](logs/2026-07-06-dedup-calibration-and-wrapup-ux.md) — calibrated learnings-dedup against real content, closed the residual paraphrase gap (decisions/0003), streamlined wrap-up's review flow

@@ -1,10 +1,10 @@
 # current state
 
 Date: 2026-07-07
-Commit: 088c2d4dbcf7899eb494c31431f8b9e14fa9f7da
+Commit: 00d0addf6c4014a0f31aece53fec0cf66bdcd4fe
 
 ## Where things stand
-Four threads are live on the `graphify-integration` branch (unmerged, `main` untouched):
+Five threads are live on the `graphify-integration` branch (unmerged, `main` untouched):
 
 1. **graphify pilot** -- integration complete (ADR 0001, deterministic-only mode). Still mid-pilot:
    using `graphify query` day-to-day to see if it earns its keep before merge/revert. As of this
@@ -25,8 +25,26 @@ Four threads are live on the `graphify-integration` branch (unmerged, `main` unt
    memory (`feedback_treat_context_as_cache.md`, in agent memory, not this repo) instructing the agent
    to default to these tools whenever it wouldn't degrade response quality. decisions/0004 designs a
    deterministic way to verify this actually saves tokens, using real transcripts -- not yet built.
+5. **Fault-tolerance audit of compass itself (this session)** -- stepped back to review compass as
+   long-lived software, not just a working prototype. Confirmed the "deterministic filters, prompts as
+   suggestions" pattern holds in the core (compass-check.sh, learning-dedup, context nudge). Found 9
+   gaps at the edges (Claude Code format coupling, install topology, cache versioning, etc.) --
+   see logs/2026-07-07-fault-tolerance-audit.md for the full list. Now working through them, starting
+   with CI.
 
 ## In flight
+- **Fault-tolerance audit backlog (logs/2026-07-07-fault-tolerance-audit.md), in priority order:**
+  1. No CI -- `tests/run_tests.sh` never runs automatically. **In progress this session.**
+  2. `session_status.py`/`tool_efficiency.py` don't defensively handle corrupted/partial transcript
+     JSONL lines -- can throw uncaught inside the `Stop` hook path. Next up after CI.
+  3. Global skills/hooks symlinked via `install.sh --dev` from this branch, not `$DOTFILES/compass` --
+     no detection if the branch is later deleted/rebased.
+  4. `register_hook.py`/`install.sh`'s settings.json mutation has no post-write validation.
+  5. Embedding cache keyed by content hash only, not `(model_name, hash)` -- stale vectors on retune.
+  6. No inventory of which repos have a compass, to push SPEC.md version bumps out to.
+  7. No `.compass/`-directory-level version marker (layout, not just content-convention, drift).
+  8. graphify has no `UNAVAILABLE`-equivalent signal if its CLI output format changes upstream.
+  9. `logs/archive.md`/`experiments/archive.md` grow unbounded once the entry cap archives into them.
 - **decisions/0004's `tool_efficiency.py` is designed but not implemented.** Attributes per-turn token
   deltas to the tool calls that preceded them (Bash vs. ctx_execute vs. graphify), aggregated by tool
   name, reusing `session_status.py`'s transcript-loading helpers. Next concrete task if picking this
