@@ -33,6 +33,11 @@ log_success() { printf '%s ok%s  %s\n' "$_green" "$_reset" "$*"; }
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
+# Tally of failed create_symlink calls, reported as a loud summary at the end of install
+# instead of being swallowed -- a broken symlink must not look like a successful install.
+LINK_FAILURES=0
+track_symlink() { create_symlink "$1" "$2" || LINK_FAILURES=$((LINK_FAILURES + 1)); }
+
 # Symlink source -> target, idempotently. Backs up anything already in the way.
 create_symlink() {
   local source_path="$1"
@@ -56,7 +61,10 @@ create_symlink() {
     log_warn "backed up existing file: $target_path -> $backup"
   fi
 
-  ln -s "$source_path" "$target_path"
+  if ! ln -s "$source_path" "$target_path"; then
+    log_error "failed to link: $target_path"
+    return 1
+  fi
   log_success "linked: $(basename "$target_path")"
 }
 
@@ -134,25 +142,17 @@ link_skills() {
   mkdir -p "$skills_dst"
 
   for skill in "${SKILLS[@]}"; do
-    create_symlink "$skills_src/$skill" "$skills_dst/$skill" || true
+    track_symlink "$skills_src/$skill" "$skills_dst/$skill"
   done
 }
 
 # --- hook ---------------------------------------------------------------------
 
 link_hook() {
-  create_symlink \
-    "$SCRIPT_DIR/hooks/compass-session-start.sh" \
-    "$COMPASS_HOME/hooks/compass-session-start.sh" || true
-  create_symlink \
-    "$SCRIPT_DIR/hooks/session-context-nudge.py" \
-    "$COMPASS_HOME/hooks/session-context-nudge.py" || true
-  create_symlink \
-    "$SCRIPT_DIR/hooks/tool-routing-guard.py" \
-    "$COMPASS_HOME/hooks/tool-routing-guard.py" || true
-  create_symlink \
-    "$SCRIPT_DIR/tools/session-context" \
-    "$COMPASS_HOME/tools/session-context" || true
+  track_symlink "$SCRIPT_DIR/hooks/compass-session-start.sh" "$COMPASS_HOME/hooks/compass-session-start.sh"
+  track_symlink "$SCRIPT_DIR/hooks/session-context-nudge.py" "$COMPASS_HOME/hooks/session-context-nudge.py"
+  track_symlink "$SCRIPT_DIR/hooks/tool-routing-guard.py" "$COMPASS_HOME/hooks/tool-routing-guard.py"
+  track_symlink "$SCRIPT_DIR/tools/session-context" "$COMPASS_HOME/tools/session-context"
 }
 
 # --- settings.json ------------------------------------------------------------
@@ -250,14 +250,14 @@ install_graphify() {
 
   local installer=""
   if command_exists uv; then
-    installer="uv tool install graphifyy"
+    installer="uv tool install graphify"
   elif command_exists pipx; then
-    installer="pipx install graphifyy"
+    installer="pipx install graphify"
   elif command_exists pip; then
-    installer="pip install graphifyy"
+    installer="pip install graphify"
   else
     log_warn "no uv/pipx/pip found — skipping graphify install (optional)"
-    log_warn "to install later: uv tool install graphifyy && graphify install"
+    log_warn "to install later: uv tool install graphify && graphify install"
     return 0
   fi
 
@@ -331,6 +331,11 @@ main() {
   log_info "graphify (optional navigation layer)"
   install_graphify
   echo
+
+  if [ "$LINK_FAILURES" -gt 0 ]; then
+    log_error "$LINK_FAILURES symlink(s) failed -- compass is not fully installed"
+    exit 1
+  fi
 
   log_success "compass install complete"
   echo

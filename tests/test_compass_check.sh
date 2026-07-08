@@ -129,10 +129,21 @@ echo "-- D: current-state.md Commit: anchor"
   rm -rf "$d"
 
   d="$(new_fixture)"
-  sed -i.bak 's/^Commit: .*/Commit: abc1234/' "$d/.compass/context/current-state.md" && rm -f "$d/.compass/context/current-state.md.bak"
-  assert_exit_code 0 "well-formed Commit: line: check-only passes" "$CHECK" --repo-root "$d" .compass
+  short_hash="$(git -C "$d" rev-parse --short HEAD)"
+  sed -i.bak "s/^Commit: .*/Commit: $short_hash/" "$d/.compass/context/current-state.md" && rm -f "$d/.compass/context/current-state.md.bak"
+  assert_exit_code 0 "well-formed, resolving Commit: line: check-only passes" "$CHECK" --repo-root "$d" .compass
   "$CHECK" --fix --repo-root "$d" .compass >/dev/null 2>&1
-  assert_file_contains "$d/.compass/context/current-state.md" '^Commit: abc1234$' "valid --fix: leaves well-formed hash untouched"
+  assert_file_contains "$d/.compass/context/current-state.md" "^Commit: $short_hash\$" "valid --fix: leaves well-formed hash untouched"
+  rm -rf "$d"
+
+  d="$(new_fixture)"
+  sed -i.bak 's/^Commit: .*/Commit: abc1234/' "$d/.compass/context/current-state.md" && rm -f "$d/.compass/context/current-state.md.bak"
+  assert_exit_code 1 "well-formed but non-resolving Commit: check-only fails" "$CHECK" --repo-root "$d" .compass
+  head_hash="$(git -C "$d" rev-parse HEAD)"
+  "$CHECK" --fix --repo-root "$d" .compass >/dev/null 2>&1
+  assert_file_not_contains "$d/.compass/context/current-state.md" 'abc1234' "well-formed but non-resolving --fix: replaces fake hash"
+  assert_file_contains "$d/.compass/context/current-state.md" "^Commit: $head_hash$" "well-formed but non-resolving --fix: stamps real HEAD hash"
+  assert_exit_code 0 "well-formed but non-resolving --fix: check-only now passes" "$CHECK" --repo-root "$d" .compass
   rm -rf "$d"
 }
 

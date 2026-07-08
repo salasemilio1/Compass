@@ -60,7 +60,12 @@ def load_assistant_turns(transcript_path: "str | Path") -> list[dict]:
             line = line.strip()
             if not line:
                 continue
-            entry = json.loads(line)
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                # A truncated/partial write on one line must not silently drop every
+                # turn after it -- skip just this line and keep reading.
+                continue
             if entry.get("type") != "assistant" or entry.get("isSidechain"):
                 continue
             usage = entry.get("message", {}).get("usage")

@@ -25,6 +25,9 @@ warm-up never writes. The goal: a cold session becomes useful in seconds without
 4. **Read the resume layer:**
    - `context/current-state.md` if present — where the work stands and the next steps. This is the most
      important file for resuming an in-progress project. Stop here for repeat sessions.
+   - If it's missing (first-ever warm-up, or it was never written), say so plainly instead of silently
+     skipping the step, then fall through to `context/overview.md`/`architecture/overview.md` if those
+     exist, or note that no prior context exists at all.
    - `context/overview.md` and `architecture/overview.md` only if: the user is new to the repo,
      explicitly asks for orientation, or the task involves structural changes (new files, new layers,
      bootstrap modifications). Otherwise skip — current-state.md is enough to resume.

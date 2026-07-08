@@ -38,6 +38,10 @@ def main():
     turns = load_assistant_turns(transcript_path)
     status = compute_status(turns, CONTEXT_WINDOW)
     if "error" in status:
+        # A non-trivial transcript with zero parsed turns means parsing broke, not that
+        # the session is empty -- say so instead of nudging nobody in silence.
+        if Path(transcript_path).stat().st_size > 4096:
+            print("compass: context tracking degraded -- transcript parsed to 0 usable turns", file=sys.stderr)
         return
 
     percent_used = status["raw"]["percent_used"]

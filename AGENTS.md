@@ -8,7 +8,7 @@ This repo uses the compass protocol for agent memory. Before substantial work:
 At task end, run the wrap-up workflow (git-diff-first, human-reviewed) to capture knowledge back into
 `.compass/`. Never write `.compass/` silently.
 
-This repo is also piloting [graphify](https://github.com/safishamsi/graphify) for structural navigation.
+This repo also uses [graphify](https://github.com/safishamsi/graphify), deterministic-only, for structural navigation.
 If `graphify-out/graph.json` exists, prefer `graphify query "<question>"` over grepping for "what calls
 X" / "where does Y live" style questions. compass stays the source of curated intent; graphify is
 read-only reference material, never written or modified by compass workflows.

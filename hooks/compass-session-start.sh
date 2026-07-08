@@ -28,7 +28,14 @@ if [ -d ".compass" ]; then
     # no LLM, no network) so it's safe to refresh unconditionally in the background. Only
     # runs when graphify-out/ already exists -- the first build stays an explicit action.
     if command -v graphify >/dev/null 2>&1; then
-      ( graphify update . >/dev/null 2>&1 & disown ) 2>/dev/null || true
+      # Bounded so a hung graphify (bad grammar, symlink loop) can't leak an orphan
+      # process on every session start. `timeout` isn't on stock macOS; skip the bound
+      # there rather than fail the whole nudge over a missing coreutils package.
+      if command -v timeout >/dev/null 2>&1; then
+        ( timeout 30 graphify update . >/dev/null 2>&1 & disown ) 2>/dev/null || true
+      else
+        ( graphify update . >/dev/null 2>&1 & disown ) 2>/dev/null || true
+      fi
     fi
   fi
 

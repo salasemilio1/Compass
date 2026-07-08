@@ -229,7 +229,7 @@ def main(argv: list) -> int:
             finding, _ = find_duplicates(candidate_text, existing, embed_fn=real_embed_fn, cache=cache)
             save_cache(cache_path, cache)
         except Exception as exc:  # no uv-installed fastembed, no network, timeout, etc.
-            print(f"UNAVAILABLE: {exc}")
+            print(f"UNAVAILABLE: {type(exc).__name__}: {exc}")
             return 0
 
     if finding is not None:

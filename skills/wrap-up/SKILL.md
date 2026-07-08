@@ -52,8 +52,8 @@ Never write `.compass/` silently.
    ```
    `DUPLICATE`/`POSSIBLE_DUPLICATE` → surface it in the review presentation ("this looks like/similar to
    `learnings/X.md` (score) — update that instead of a new file?") instead of silently adding a
-   duplicate. `UNAVAILABLE` (no `uv`, offline, etc.) → note it once and proceed normally; this check is
-   a gentle filter, never a gate.
+   duplicate. `UNAVAILABLE: <reason>` (missing dependency, offline, etc.) → show the reason to the user
+   once and proceed normally; this check is a best-effort gentle filter, never a gate.
 
 5. **Update `INDEX.md`** — add a one-line row for each new entry (newest first for `logs`/`experiments`),
    refresh the `Updated:` date, update `Start here` pointers if they changed.

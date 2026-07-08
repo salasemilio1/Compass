@@ -58,7 +58,12 @@ def load_tool_windows(transcript_path: "str | Path") -> list[dict]:
             line = line.strip()
             if not line:
                 continue
-            entry = json.loads(line)
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                # A truncated/partial write on one line must not silently drop every
+                # window after it -- skip just this line and keep reading.
+                continue
             if entry.get("isSidechain"):
                 continue
 

@@ -11,7 +11,9 @@ Exits 1 on any failure (missing args, unreadable/invalid existing JSON) so the c
 can surface a clear error instead of silently doing nothing.
 """
 import json
+import os
 import sys
+import tempfile
 
 
 def main() -> int:
@@ -39,9 +41,18 @@ def main() -> int:
     data["hooks"].setdefault(event, [])
     data["hooks"][event].append(entry)
 
-    with open(settings_file, "w") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
+    # Write via temp file + atomic rename so a crash/disk-full mid-write can't corrupt
+    # settings.json -- either the old file survives intact or the new one lands whole.
+    settings_dir = os.path.dirname(settings_file) or "."
+    fd, tmp_path = tempfile.mkstemp(dir=settings_dir)
+    try:
+        with os.fdopen(fd, "w") as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")
+        os.replace(tmp_path, settings_file)
+    except Exception:
+        os.unlink(tmp_path)
+        raise
 
     return 0
 

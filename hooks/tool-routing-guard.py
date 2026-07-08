@@ -28,6 +28,7 @@ Usage: reads a PreToolUse hook payload on stdin, prints a PreToolUse decision on
 (or nothing, to allow).
 """
 import json
+import os
 import re
 import sys
 import tempfile
@@ -86,13 +87,16 @@ def classify(command: str, graph_exists: bool) -> "tuple[str, str] | None":
 
 def already_fired(session_id: str, rule_id: str) -> bool:
     marker = Path(tempfile.gettempdir()) / f"claude-tool-routing-{session_id}-{rule_id}"
-    if marker.exists():
-        return True
     try:
-        marker.write_text("1")
+        # O_EXCL makes create-if-absent atomic, closing the check-then-create race that let
+        # two concurrent Bash calls both see "not fired yet" and both deny.
+        fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.close(fd)
+        return False
+    except FileExistsError:
+        return True
     except OSError:
-        pass
-    return False
+        return False
 
 
 def deny(reason: str) -> None:

@@ -1,7 +1,7 @@
 # current state
 
 Date: 2026-07-08
-Commit: e905c23fbc7e10adfe0f2b0eb0d15aeed5b4f38a
+Commit: 1707a43ca00140418b52376e10e4e9eda9fc196d
 
 ## Where things stand
 On the `graphify-integration` branch (unmerged, `main` untouched). Three live threads:

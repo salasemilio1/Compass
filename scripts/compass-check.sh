@@ -90,7 +90,19 @@ fix_section_cap() {
       next
     }
     { print }
-  ' "$index_file" > "$tmp" && mv "$tmp" "$index_file"
+  ' "$index_file" > "$tmp"
+
+  # No entry may vanish in the rewrite: what's kept in INDEX.md plus what's newly
+  # archived must equal what was there before. Abort loudly rather than overwrite
+  # INDEX.md with a partial/corrupt result.
+  local kept_count
+  kept_count=$(extract_section_lines "$tmp" "$heading" | wc -l | tr -d ' ')
+  if [ ! -s "$tmp" ] || [ "$kept_count" -ne "$MAX_ENTRIES" ]; then
+    log_error "INDEX.md: rewrite for ## $heading looks corrupt (kept $kept_count, expected $MAX_ENTRIES) -- aborting, no changes made"
+    rm -f "$tmp"
+    return 1
+  fi
+  mv "$tmp" "$index_file"
 
   log_success "INDEX.md: archived $((count - MAX_ENTRIES)) $heading entries to $archive_file"
 }
@@ -140,7 +152,13 @@ fix_supersession() {
         sub(/^- /, "- " marker)
       }
       { print }
-    ' "$index_file" > "$tmp" && mv "$tmp" "$index_file"
+    ' "$index_file" > "$tmp"
+    if [ ! -s "$tmp" ]; then
+      log_error "INDEX.md: rewrite while marking $old_basename produced an empty file -- aborting, no changes made"
+      rm -f "$tmp"
+      continue
+    fi
+    mv "$tmp" "$index_file"
     log_success "INDEX.md: marked decisions/$old_basename as $marker"
   done < <(each_supersession "$compass_dir")
 }
@@ -148,10 +166,19 @@ fix_supersession() {
 # --- D: current-state.md Commit: anchor -----------------------------------------
 
 check_current_state_commit() {
-  local compass_dir="$1" file="$compass_dir/context/current-state.md"
+  local compass_dir="$1" repo_root="$2" file="$compass_dir/context/current-state.md"
   [ -f "$file" ] || return 0
-  if ! grep -qE '^Commit: [0-9a-f]{7,40}$' "$file"; then
+
+  local stamped
+  stamped=$(grep -oE '^Commit: [0-9a-f]{7,40}$' "$file" | awk '{print $2}')
+  if [ -z "${stamped:-}" ]; then
     log_error "context/current-state.md: missing or malformed 'Commit: <hash>' line -- run --fix"
+    return 1
+  fi
+
+  # Shape alone doesn't prove the stamp is real -- confirm it resolves in this repo.
+  if ! git -C "$repo_root" cat-file -e "${stamped}^{commit}" 2>/dev/null; then
+    log_error "context/current-state.md: Commit: $stamped does not resolve in this repo -- run --fix"
     return 1
   fi
   return 0
@@ -160,7 +187,12 @@ check_current_state_commit() {
 fix_current_state_commit() {
   local compass_dir="$1" repo_root="$2" file="$compass_dir/context/current-state.md"
   [ -f "$file" ] || return 0
-  grep -qE '^Commit: [0-9a-f]{7,40}$' "$file" && return 0
+
+  local existing
+  existing=$(grep -oE '^Commit: [0-9a-f]{7,40}$' "$file" | awk '{print $2}')
+  if [ -n "${existing:-}" ] && git -C "$repo_root" cat-file -e "${existing}^{commit}" 2>/dev/null; then
+    return 0
+  fi
 
   local head_hash
   head_hash=$(git -C "$repo_root" rev-parse HEAD 2>/dev/null) || {
@@ -250,7 +282,7 @@ main() {
   else
     check_index_bloat "$index_file" || exit_code=1
     check_supersession "$compass_dir" || exit_code=1
-    check_current_state_commit "$compass_dir" || exit_code=1
+    check_current_state_commit "$compass_dir" "$repo_root" || exit_code=1
   fi
 
   check_spec_version "$repo_root"
