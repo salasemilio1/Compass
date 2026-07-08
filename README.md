@@ -14,9 +14,9 @@ Optional: context-mode MCP (sandboxes large command output so it doesn't eat you
 ## Install
 
 ```bash
-git clone https://github.com/salasemilio1/dotfiles
-cd dotfiles
-bash compass/install.sh
+git clone https://github.com/salasemilio1/Compass
+cd Compass
+bash install.sh
 ```
 
 The script is safe to re-run. If you already have a tool set up it will say so and move on.
@@ -30,8 +30,6 @@ Use these as slash commands inside any Claude Code session.
 | `/init-compass` | Add compass to a project (run once per project) |
 | `/warm-up` | Load project context at the start of a session |
 | `/wrap-up` | Save what you built at the end of a session |
-| `/explain <thing>` | Quick explanation of code or a compass entry |
-| `/new-experiment` | Log an ML run with config, results, and notes |
 
 ## How a session works
 
