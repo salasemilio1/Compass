@@ -17,14 +17,24 @@ On the `graphify-integration` branch (unmerged, `main` untouched). Three live th
    compass as long-lived software rather than a working prototype. Findings and full gap list:
    logs/2026-07-07-fault-tolerance-audit.md. Core pattern (deterministic filters, prompts as
    suggestions) holds; gaps are at the edges. Working the backlog below in priority order. First fix
-   (CI) is done; second fix (deterministic tool-routing guard, decisions/0005) is built, tested, and
-   installed, but **not yet confirmed firing in a real session** -- same activation caveat as thread 2.
+   (CI) is done; second fix (deterministic tool-routing guard, decisions/0005) was built and committed
+   but, it turned out, never actually deployed -- `install.sh --dev` hadn't been re-run since, so it had
+   no symlink in `~/.claude/hooks/` and no `PreToolUse` entry in `settings.json`
+   (learnings/decision-installed-claim-vs-actual-deployment.md). Fixed 2026-07-08 by re-running
+   `install.sh --dev`; the guard is now genuinely installed but **still not yet confirmed firing in a
+   real session** -- same activation caveat as thread 2, now for the first time actually testable.
+4. **`warm-up` system health check (2026-07-08)** -- `skills/warm-up/SKILL.md` now runs a quick
+   deterministic check (ctx MCP connected? graphify CLI installed?) as step 2 of every warm-up, reported
+   as a one-line status. Added after confirming, in the course of thread 3's investigation, that
+   `context-mode` MCP was down (unrelated system cause: a Homebrew `llhttp` version mismatch broke the
+   local Node install; fixed by relinking, not a compass code change).
 
 ## Audit backlog (logs/2026-07-07-fault-tolerance-audit.md), in priority order
 1. ~~No CI~~ -- **done.** `.github/workflows/ci.yml` runs both test suites on every push/PR.
-2. ~~Tool routing left to agent judgment~~ -- **done, unconfirmed live.** `hooks/tool-routing-guard.py`
-   (decisions/0005) denies heavy/broad `Bash` calls toward `ctx_execute`/`graphify query`, with a
-   per-session retry safety valve. Next: start a fresh session and verify it actually fires.
+2. ~~Tool routing left to agent judgment~~ -- **done, actually deployed 2026-07-08, unconfirmed live.**
+   `hooks/tool-routing-guard.py` (decisions/0005) denies heavy/broad `Bash` calls toward
+   `ctx_execute`/`graphify query`, with a per-session retry safety valve. Next: start a fresh session
+   and verify it actually fires.
 3. `session_status.py`/`tool_efficiency.py` don't defensively handle corrupted/partial transcript
    JSONL lines -- can throw uncaught inside the `Stop` hook path. **Next up.**
 4. Global skills/hooks are symlinked via `install.sh --dev` from this branch, not `$DOTFILES/compass`

@@ -4,7 +4,7 @@
 > repo so sessions start informed instead of cold, plus skills to load/save it (`warm-up`, `wrap-up`,
 > `init-compass`) and a `SessionStart` hook that nudges agents to use it.
 
-**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context), Markdown (skills, spec, template)   ·   **Mode:** committed   ·   **Updated:** 2026-07-07 (fault-tolerance audit)
+**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context), Markdown (skills, spec, template)   ·   **Mode:** committed   ·   **Updated:** 2026-07-08 (confirmed guard deployment, warm-up health check)
 
 ## Start here
 - New to the project? Read: [context/overview.md](context/overview.md), [SPEC.md](../SPEC.md)
@@ -34,6 +34,7 @@
 
 ## logs
 <!-- newest first -->
+- [2026-07-08-confirm-guard-and-warmup-health-check.md](logs/2026-07-08-confirm-guard-and-warmup-health-check.md) — found the tool-routing guard was never actually deployed (decision said "installed", global state didn't match) and fixed via install.sh --dev; fixed context-mode MCP (broken system Node from a Homebrew llhttp mismatch); added a ctx/graphify health check to warm-up
 - [2026-07-08-ci-and-deterministic-routing.md](logs/2026-07-08-ci-and-deterministic-routing.md) — added GitHub Actions CI (audit gap #1); built a PreToolUse hook that deterministically routes heavy Bash calls to ctx_execute/graphify instead of relying on agent judgment (decisions/0005)
 - [2026-07-07-fault-tolerance-audit.md](logs/2026-07-07-fault-tolerance-audit.md) — stepped-back audit of compass as long-lived software; core deterministic-filter pattern holds, 9 gaps found at the edges (Claude Code format coupling, install topology, cache versioning); backlog now in current-state.md
 - [2026-07-07-precommit-backstop-and-tool-efficiency.md](logs/2026-07-07-precommit-backstop-and-tool-efficiency.md) — installed the `.git/hooks/pre-commit` backstop, built `tool_efficiency.py` (decisions/0004), surfaced a Bash-truncation-vs-ctx measurement bias
@@ -53,6 +54,7 @@
 - [graphify-cli-quirks.md](learnings/graphify-cli-quirks.md) — Ollama backend needs `graphifyy[ollama]` extras; `--backend` flag syntax differs by subcommand (not currently used — deterministic-only)
 - [verify-flagged-installs-directly.md](learnings/verify-flagged-installs-directly.md) — when an install is flagged as a possible typosquat, verify via the registry's own API, not just the project's docs
 - [pretooluse-hooks-fail-closed.md](learnings/pretooluse-hooks-fail-closed.md) — PreToolUse hooks block the tool call if the hook script crashes/times out, unlike SessionStart/Stop; a denying hook must be fast and defensive on every path
+- [decision-installed-claim-vs-actual-deployment.md](learnings/decision-installed-claim-vs-actual-deployment.md) — a decision/log documenting a hook as "installed" doesn't mean install.sh was actually re-run; verify the symlink/settings.json directly
 
 ---
 
