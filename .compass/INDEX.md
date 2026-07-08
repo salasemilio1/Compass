@@ -4,7 +4,7 @@
 > repo so sessions start informed instead of cold, plus skills to load/save it (`warm-up`, `wrap-up`,
 > `init-compass`) and a `SessionStart` hook that nudges agents to use it.
 
-**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context), Markdown (skills, spec, template)   ·   **Mode:** committed   ·   **Updated:** 2026-07-08 (confirmed guard deployment, warm-up health check)
+**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context), Markdown (skills, spec, template)   ·   **Mode:** committed, steady-state (main)   ·   **Updated:** 2026-07-08 (hardening pass, merged to main, install topology rework)
 
 ## Start here
 - New to the project? Read: [context/overview.md](context/overview.md), [SPEC.md](../SPEC.md)
@@ -15,7 +15,7 @@
 
 ## context
 <!-- one line per entry; this is a retrieval hint, not a summary -->
-- [current-state.md](context/current-state.md) — piloting graphify-integration branch, unmerged; pre-commit backstop installed and tool_efficiency.py built (decisions/0004), which surfaced a Bash-truncation-vs-ctx measurement bias; next: design a deterministic (non-agent-judgment) routing rule
+- [current-state.md](context/current-state.md) — merged to main, steady-state; hardening pass closed the fault-tolerance audit backlog and reworked install.sh to copy instead of symlink (decisions/0006); maintenance-mode from here
 - [overview.md](context/overview.md) — what compass is, the three-layer model (compass/context-mode/graphify), repo layout
 
 ## architecture
@@ -23,10 +23,11 @@
 
 ## decisions
 - [0001-graphify-deterministic-only.md](decisions/0001-graphify-deterministic-only.md) — graphify wiring uses only its deterministic mode (no LLM/backend), for zero-cost always-fresh navigation
-- [0002-close-audited-gaps-with-deterministic-scripts.md](decisions/0002-close-audited-gaps-with-deterministic-scripts.md) — closed 5 audited bloat/staleness gaps with compass-check.sh + a 3-stage learnings-dedup filter; rejected Caveman/Headroom/semantic-tool-selection as the wrong layer
+- [SUPERSEDED by 0006] [0002-close-audited-gaps-with-deterministic-scripts.md](decisions/0002-close-audited-gaps-with-deterministic-scripts.md) — closed 5 audited bloat/staleness gaps with compass-check.sh + a 3-stage learnings-dedup filter; rejected Caveman/Headroom/semantic-tool-selection as the wrong layer
 - [0003-learnings-dedup-always-runs-stage3.md](decisions/0003-learnings-dedup-always-runs-stage3.md) — dropped the confidently-novel lexical short-circuit after real-content calibration found true paraphrases it silently missed
 - [0004-transcript-based-tool-efficiency-measurement.md](decisions/0004-transcript-based-tool-efficiency-measurement.md) — measure context-mode/graphify's real token savings by attributing per-turn token deltas to tool calls in the transcript, deterministic, no synthetic benchmark
 - [0005-deterministic-tool-routing-guard.md](decisions/0005-deterministic-tool-routing-guard.md) — PreToolUse hook that denies heavy/broad Bash calls toward ctx_execute/graphify by command shape, with a per-session retry safety valve so an unavailable alternate tool can't deadlock a session
+- [0006-copy-not-symlink-global-install.md](decisions/0006-copy-not-symlink-global-install.md) — install.sh copies (not symlinks) skills/hooks so an ephemeral dotfiles clone can be deleted after install; drops the now-pointless $DOTFILES canonical-source guard and --dev flag (supersedes 0002)
 
 ## experiments
 <!-- newest first; one line: model + headline result -->
@@ -34,6 +35,7 @@
 
 ## logs
 <!-- newest first -->
+- [2026-07-08-hardening-and-install-rework.md](logs/2026-07-08-hardening-and-install-rework.md) — closed the fault-tolerance audit backlog (loud-not-silent fixes across compass-check.sh/register_hook.py/session_status.py/tool-routing-guard.py), merged graphify-integration to main, reworked install.sh to copy instead of symlink (decisions/0006); caught and reverted a false "typo fix" to graphify's real graphifyy package name
 - [2026-07-08-confirm-guard-and-warmup-health-check.md](logs/2026-07-08-confirm-guard-and-warmup-health-check.md) — found the tool-routing guard was never actually deployed (decision said "installed", global state didn't match) and fixed via install.sh --dev; fixed context-mode MCP (broken system Node from a Homebrew llhttp mismatch); added a ctx/graphify health check to warm-up
 - [2026-07-08-ci-and-deterministic-routing.md](logs/2026-07-08-ci-and-deterministic-routing.md) — added GitHub Actions CI (audit gap #1); built a PreToolUse hook that deterministically routes heavy Bash calls to ctx_execute/graphify instead of relying on agent judgment (decisions/0005)
 - [2026-07-07-fault-tolerance-audit.md](logs/2026-07-07-fault-tolerance-audit.md) — stepped-back audit of compass as long-lived software; core deterministic-filter pattern holds, 9 gaps found at the edges (Claude Code format coupling, install topology, cache versioning); backlog now in current-state.md
@@ -55,6 +57,7 @@
 - [verify-flagged-installs-directly.md](learnings/verify-flagged-installs-directly.md) — when an install is flagged as a possible typosquat, verify via the registry's own API, not just the project's docs
 - [pretooluse-hooks-fail-closed.md](learnings/pretooluse-hooks-fail-closed.md) — PreToolUse hooks block the tool call if the hook script crashes/times out, unlike SessionStart/Stop; a denying hook must be fast and defensive on every path
 - [decision-installed-claim-vs-actual-deployment.md](learnings/decision-installed-claim-vs-actual-deployment.md) — a decision/log documenting a hook as "installed" doesn't mean install.sh was actually re-run; verify the symlink/settings.json directly
+- [check-existing-learnings-before-treating-as-typo.md](learnings/check-existing-learnings-before-treating-as-typo.md) — a doubled letter that "looks like a typo" (graphifyy) was actually the real package name; two learnings already said so — grep learnings/ before "fixing" it
 
 ---
 

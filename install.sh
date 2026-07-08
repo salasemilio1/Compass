@@ -10,8 +10,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Override for testing/isolation -- defaults to the real global Claude Code config dir.
 COMPASS_HOME="${COMPASS_HOME:-$HOME/.claude}"
 
-DEV_MODE=0
-
 # --- logging ------------------------------------------------------------------
 
 if [ -t 1 ]; then
@@ -33,13 +31,16 @@ log_success() { printf '%s ok%s  %s\n' "$_green" "$_reset" "$*"; }
 
 command_exists() { command -v "$1" >/dev/null 2>&1; }
 
-# Tally of failed create_symlink calls, reported as a loud summary at the end of install
-# instead of being swallowed -- a broken symlink must not look like a successful install.
-LINK_FAILURES=0
-track_symlink() { create_symlink "$1" "$2" || LINK_FAILURES=$((LINK_FAILURES + 1)); }
+# Tally of failed install_path calls, reported as a loud summary at the end of install
+# instead of being swallowed -- a broken install must not look like a successful one.
+INSTALL_FAILURES=0
+track_install() { install_path "$1" "$2" || INSTALL_FAILURES=$((INSTALL_FAILURES + 1)); }
 
-# Symlink source -> target, idempotently. Backs up anything already in the way.
-create_symlink() {
+# Copy source -> target, idempotently (always overwrites so re-running install.sh also
+# serves as the update mechanism). Copying rather than symlinking means the installed
+# skills/hooks keep working even after the source checkout (e.g. a cloned dotfiles repo)
+# is deleted -- there is nothing left pointing back at it.
+install_path() {
   local source_path="$1"
   local target_path="$2"
 
@@ -49,56 +50,13 @@ create_symlink() {
   fi
 
   mkdir -p "$(dirname "$target_path")"
+  rm -rf "$target_path"
 
-  if [ -L "$target_path" ] && [ "$(readlink "$target_path")" = "$source_path" ]; then
-    log_success "already linked: $(basename "$target_path")"
-    return 0
-  fi
-
-  if [ -e "$target_path" ] || [ -L "$target_path" ]; then
-    local backup="${target_path}.backup-$(date +%Y%m%d%H%M%S)"
-    mv "$target_path" "$backup"
-    log_warn "backed up existing file: $target_path -> $backup"
-  fi
-
-  if ! ln -s "$source_path" "$target_path"; then
-    log_error "failed to link: $target_path"
+  if ! cp -R "$source_path" "$target_path"; then
+    log_error "failed to install: $target_path"
     return 1
   fi
-  log_success "linked: $(basename "$target_path")"
-}
-
-# --- install source guard ------------------------------------------------------
-#
-# Global skills/hook symlinks point at whatever checkout this script runs from. If that's
-# an arbitrary dev clone (not the canonical $DOTFILES/compass), a destructive git operation
-# there (reset --hard, branch delete, force-push) breaks compass globally, not just locally.
-# Refuse by default; --dev is the explicit escape hatch for iterating on compass itself.
-
-check_install_source() {
-  local resolved_script_dir
-  resolved_script_dir="$(cd "$SCRIPT_DIR" && pwd -P)"
-
-  if [ -n "${DOTFILES:-}" ] && [ -d "$DOTFILES/compass" ]; then
-    local canonical
-    canonical="$(cd "$DOTFILES/compass" && pwd -P)"
-    if [ "$resolved_script_dir" = "$canonical" ]; then
-      return 0
-    fi
-  fi
-
-  if [ "$DEV_MODE" -eq 1 ]; then
-    log_warn "dev install: symlinking global skills from a non-canonical checkout:"
-    log_warn "  $resolved_script_dir"
-    log_warn "this is not \$DOTFILES/compass -- a destructive git operation here (reset --hard,"
-    log_warn "branch delete, force-push) will break compass globally until reinstalled from canonical"
-    return 0
-  fi
-
-  log_error "refusing to install from a non-canonical path: $resolved_script_dir"
-  log_error "expected \$DOTFILES/compass (\$DOTFILES=${DOTFILES:-<unset>})"
-  log_error "if you're intentionally developing compass here, re-run with: install.sh --dev"
-  return 1
+  log_success "installed: $(basename "$target_path")"
 }
 
 # --- prerequisites ------------------------------------------------------------
@@ -142,17 +100,17 @@ link_skills() {
   mkdir -p "$skills_dst"
 
   for skill in "${SKILLS[@]}"; do
-    track_symlink "$skills_src/$skill" "$skills_dst/$skill"
+    track_install "$skills_src/$skill" "$skills_dst/$skill"
   done
 }
 
 # --- hook ---------------------------------------------------------------------
 
 link_hook() {
-  track_symlink "$SCRIPT_DIR/hooks/compass-session-start.sh" "$COMPASS_HOME/hooks/compass-session-start.sh"
-  track_symlink "$SCRIPT_DIR/hooks/session-context-nudge.py" "$COMPASS_HOME/hooks/session-context-nudge.py"
-  track_symlink "$SCRIPT_DIR/hooks/tool-routing-guard.py" "$COMPASS_HOME/hooks/tool-routing-guard.py"
-  track_symlink "$SCRIPT_DIR/tools/session-context" "$COMPASS_HOME/tools/session-context"
+  track_install "$SCRIPT_DIR/hooks/compass-session-start.sh" "$COMPASS_HOME/hooks/compass-session-start.sh"
+  track_install "$SCRIPT_DIR/hooks/session-context-nudge.py" "$COMPASS_HOME/hooks/session-context-nudge.py"
+  track_install "$SCRIPT_DIR/hooks/tool-routing-guard.py" "$COMPASS_HOME/hooks/tool-routing-guard.py"
+  track_install "$SCRIPT_DIR/tools/session-context" "$COMPASS_HOME/tools/session-context"
 }
 
 # --- settings.json ------------------------------------------------------------
@@ -248,16 +206,18 @@ install_graphify() {
     return 0
   fi
 
+  # The PyPI package is "graphifyy" (double y); it installs a "graphify" (single y)
+  # command. Not a typo -- see learnings/graphify-cli-quirks.md.
   local installer=""
   if command_exists uv; then
-    installer="uv tool install graphify"
+    installer="uv tool install graphifyy"
   elif command_exists pipx; then
-    installer="pipx install graphify"
+    installer="pipx install graphifyy"
   elif command_exists pip; then
-    installer="pip install graphify"
+    installer="pip install graphifyy"
   else
     log_warn "no uv/pipx/pip found — skipping graphify install (optional)"
-    log_warn "to install later: uv tool install graphify && graphify install"
+    log_warn "to install later: uv tool install graphifyy && graphify install"
     return 0
   fi
 
@@ -280,13 +240,6 @@ install_graphify() {
 # --- main ---------------------------------------------------------------------
 
 main() {
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      --dev) DEV_MODE=1; shift ;;
-      *) shift ;;
-    esac
-  done
-
   log_info "compass install (from: $SCRIPT_DIR)"
   echo
 
@@ -294,12 +247,6 @@ main() {
   if ! check_prerequisites; then
     echo
     log_error "required tools missing — install them and re-run"
-    exit 1
-  fi
-  echo
-
-  log_info "install source"
-  if ! check_install_source; then
     exit 1
   fi
   echo
@@ -332,8 +279,8 @@ main() {
   install_graphify
   echo
 
-  if [ "$LINK_FAILURES" -gt 0 ]; then
-    log_error "$LINK_FAILURES symlink(s) failed -- compass is not fully installed"
+  if [ "$INSTALL_FAILURES" -gt 0 ]; then
+    log_error "$INSTALL_FAILURES install step(s) failed -- compass is not fully installed"
     exit 1
   fi
 
@@ -345,8 +292,8 @@ main() {
   log_info "  see README.md for the full guide"
 }
 
-# Allows tests to `source` this file for its functions (check_install_source, etc.)
-# without running the full install (which does real network/MCP side effects).
+# Allows tests to `source` this file for its functions (install_path, etc.) without
+# running the full install (which does real network/MCP side effects).
 if [ "${COMPASS_TEST_SOURCE:-0}" != "1" ]; then
   main "$@"
 fi

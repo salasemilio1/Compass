@@ -1,65 +1,65 @@
 # current state
 
 Date: 2026-07-08
-Commit: 1707a43ca00140418b52376e10e4e9eda9fc196d
+Commit: 76b4d9ce61a373ef29630e741831f719242d6292
 
 ## Where things stand
-On the `graphify-integration` branch (unmerged, `main` untouched). Three live threads:
+Compass is merged to `main` and considered steady-state software: not under active development,
+hardened to run unattended. `graphify-integration` was fast-forwarded/merged into `main` and can be
+deleted once you're satisfied the reinstall from `main` works.
 
-1. **graphify pilot** -- integration complete (decisions/0001, deterministic-only mode). Usage has
-   been zero across every real session measured so far (see thread 3) -- being addressed
-   deterministically rather than by continuing to wait for organic adoption.
-2. **Context-usage nudge** -- token-based `Stop` hook (`hooks/session-context-nudge.py` +
-   `tools/session-context/session_status.py`) reading real API `usage` data, nudges at 75% of a 200k
-   window. Installed globally. Not yet confirmed firing in a real session (needs a session start after
-   install to activate -- learnings/hooks-require-session-restart.md).
-3. **Fault-tolerance audit + deterministic tool routing (2026-07-07/08)** -- stepped back to review
-   compass as long-lived software rather than a working prototype. Findings and full gap list:
-   logs/2026-07-07-fault-tolerance-audit.md. Core pattern (deterministic filters, prompts as
-   suggestions) holds; gaps are at the edges. Working the backlog below in priority order. First fix
-   (CI) is done; second fix (deterministic tool-routing guard, decisions/0005) was built and committed
-   but, it turned out, never actually deployed -- `install.sh --dev` hadn't been re-run since, so it had
-   no symlink in `~/.claude/hooks/` and no `PreToolUse` entry in `settings.json`
-   (learnings/decision-installed-claim-vs-actual-deployment.md). Fixed 2026-07-08 by re-running
-   `install.sh --dev`; the guard is now genuinely installed but **still not yet confirmed firing in a
-   real session** -- same activation caveat as thread 2, now for the first time actually testable.
-4. **`warm-up` system health check (2026-07-08)** -- `skills/warm-up/SKILL.md` now runs a quick
-   deterministic check (ctx MCP connected? graphify CLI installed?) as step 2 of every warm-up, reported
-   as a one-line status. Added after confirming, in the course of thread 3's investigation, that
-   `context-mode` MCP was down (unrelated system cause: a Homebrew `llhttp` version mismatch broke the
-   local Node install; fixed by relinking, not a compass code change).
+A hardening pass (this session) closed the fault-tolerance audit backlog and one newly-surfaced
+architectural gap:
 
-## Audit backlog (logs/2026-07-07-fault-tolerance-audit.md), in priority order
-1. ~~No CI~~ -- **done.** `.github/workflows/ci.yml` runs both test suites on every push/PR.
-2. ~~Tool routing left to agent judgment~~ -- **done, actually deployed 2026-07-08, unconfirmed live.**
-   `hooks/tool-routing-guard.py` (decisions/0005) denies heavy/broad `Bash` calls toward
-   `ctx_execute`/`graphify query`, with a per-session retry safety valve. Next: start a fresh session
-   and verify it actually fires.
-3. `session_status.py`/`tool_efficiency.py` don't defensively handle corrupted/partial transcript
-   JSONL lines -- can throw uncaught inside the `Stop` hook path. **Next up.**
-4. Global skills/hooks are symlinked via `install.sh --dev` from this branch, not `$DOTFILES/compass`
-   -- no detection if the branch is later deleted/rebased.
-5. `register_hook.py`/`install.sh`'s settings.json mutation has no post-write validation.
-6. Embedding cache (`.compass/learnings/.embedding-cache.json`) keyed by content hash only, not
-   `(model_name, hash)` -- stale vectors on retune.
-7. No inventory of which repos have a compass, to push `SPEC.md` version bumps out to.
-8. No `.compass/`-directory-level version marker (layout, not just content-convention, drift).
-9. graphify has no `UNAVAILABLE`-equivalent signal if its CLI output format changes upstream.
-10. `logs/archive.md`/`experiments/archive.md` grow unbounded once the entry cap archives into them.
+1. **Silent-failure fixes** -- one malformed transcript JSONL line no longer truncates all later usage
+   data (`session_status.py`/`tool_efficiency.py`); `register_hook.py` writes `settings.json` atomically
+   (temp file + `os.replace`); `compass-check.sh`'s INDEX.md archival/supersession rewrites now assert
+   entry counts before overwriting; `compass-check.sh`'s `Commit:` stamp is now verified to actually
+   resolve via git, not just shape-matched (this caught current-state.md's own stamp being stale/wrong);
+   `tool-routing-guard.py`'s per-session marker file is now created atomically (`O_EXCL`), closing a
+   double-fire race; `compass-session-start.sh`'s background `graphify update` is now time-bounded.
+2. **Install topology rebuilt (decisions/0006, supersedes 0002).** The real install workflow turned out
+   to be: clone a dotfiles repo, run its bootstrap (which invokes `compass/install.sh`), delete the
+   clone. That's incompatible with symlinking global skills/hooks to the source checkout -- deleting the
+   clone would silently break everything. `install.sh` now **copies** (always overwrites) instead of
+   symlinking, so installed files have no dependency on the source after install finishes. This also
+   made the `$DOTFILES/compass` canonical-source guard and `--dev` flag pointless (the risk they guarded
+   against no longer exists), so both were removed. Plain `install.sh`, no flags, now works from any
+   temp clone -- verified end-to-end (see logs/2026-07-08-hardening-and-install-rework.md).
+3. **graphify** -- integration complete (decisions/0001, deterministic-only mode), no longer described
+   as "piloting" anywhere (AGENTS.md updated). Organic usage was zero; addressed via decisions/0005's
+   deterministic tool-routing guard rather than more nudging.
+4. **Context-usage nudge** (`hooks/session-context-nudge.py`) and **tool-routing guard**
+   (`hooks/tool-routing-guard.py`) are both installed via the new copy-based `install.sh` on this
+   machine. Not yet confirmed firing across a full real session post-hardening -- worth watching for in
+   the next few sessions, not worth a dedicated verification task on its own.
+
+## Remaining backlog (from logs/2026-07-07-fault-tolerance-audit.md), explicitly deferred
+Evaluated during hardening and intentionally left alone -- low payoff for a solo user, revisit only if
+the pain actually shows up:
+- Embedding cache (`.compass/learnings/.embedding-cache.json`) keyed by content hash only, not
+  `(model_name, hash)`.
+- `logs/archive.md`/`experiments/archive.md` growing unbounded once entries overflow into them.
+- No `.compass/`-directory-level version/layout marker.
+- No inventory of which repos have a compass, to push `SPEC.md` version bumps out to.
+- graphify has no `UNAVAILABLE`-equivalent signal if its CLI output format changes upstream.
+- End-to-end tests of the warm-up/wrap-up skill markdown itself; dedicated tests for
+  `register_hook.py`/`session-context-nudge.py` beyond what's covered today.
+- `skills/init-compass/SKILL.md`'s template-path assumption -- low-frequency skill, fix opportunistically
+  if it's ever touched for another reason.
 
 ## Known issues / things to remember
-- Global `~/.claude/skills/*` and hooks are symlinked to *this* repo on the `graphify-integration`
-  branch (from running `install.sh --dev` here) -- not the usual `$DOTFILES`-managed install. This is
-  audit-backlog item 4 above, not yet fixed.
-- `install.sh` hard-requires `python3` (used for hook registration, including the JSON `matcher`
-  field `PreToolUse` hooks need) in addition to `git`/`claude`.
+- `install.sh` hard-requires `python3` (used for hook registration, including the JSON `matcher` field
+  `PreToolUse` hooks need) in addition to `git`/`claude`.
 - `graphify-out/` and `.compass/learnings/.embedding-cache.json` are gitignored/regenerable.
 - `.git/hooks/pre-commit` backstop (runs `compass-check.sh` check-only) is installed in this repo.
+- `tests/test_install_guard.sh` was renamed to `tests/test_install.sh` and rewritten for the copy-based
+  install (no more canonical-source guard to test).
 
 ## Next steps
-1. Start a fresh Claude Code session in this repo to confirm both the context-usage `Stop` hook and
-   the new `tool-routing-guard.py` `PreToolUse` hook actually fire as designed.
-2. After a handful of real sessions accumulate under the routing guard, re-run
-   `tool_efficiency.py --all` to check whether `ctx_execute`/`graphify` usage actually increased --
-   the thing the prompt-only nudge failed to move.
-3. Continue the audit backlog: item 3 (defensive transcript parsing) next.
+1. Confirm the copy-based `install.sh` works from a real dotfiles-bootstrap flow (not just the manual
+   temp-clone smoke test done this session), then delete the `graphify-integration` branch.
+2. Watch a few ordinary sessions to confirm the `Stop`/`PreToolUse` hooks fire without issue under the
+   hardened code paths -- no dedicated task needed unless something looks wrong.
+3. From here on, compass is maintenance-mode: fix real breakage as it's found, don't proactively expand
+   scope.
