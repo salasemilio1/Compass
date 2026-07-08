@@ -1,90 +1,55 @@
 # current state
 
-Date: 2026-07-07
-Commit: 00d0addf6c4014a0f31aece53fec0cf66bdcd4fe
+Date: 2026-07-08
+Commit: e905c23fbc7e10adfe0f2b0eb0d15aeed5b4f38a
 
 ## Where things stand
-Five threads are live on the `graphify-integration` branch (unmerged, `main` untouched):
+On the `graphify-integration` branch (unmerged, `main` untouched). Three live threads:
 
-1. **graphify pilot** -- integration complete (ADR 0001, deterministic-only mode). Still mid-pilot:
-   using `graphify query` day-to-day to see if it earns its keep before merge/revert. As of this
-   session, actual usage has been low -- see thread 4.
-2. **Deterministic hardening of compass itself** -- closed via `scripts/compass-check.sh`, install
-   guard, staleness hook, learnings-dedup filter. See decisions/0002, 0003 and prior logs. Stable,
-   no open work.
-3. **Context-usage nudge, built and installed this session** -- replaced the ADE repo's turn-count
-   `Stop` hook with a token-based one (`hooks/session-context-nudge.py` +
-   `tools/session-context/session_status.py`), reading the transcript's real API `usage` data (no
-   tokenization). Nudges once at 75% of a 200k context window. Installed for real in
-   `~/.claude/settings.json` (not just this repo's checkout). See logs/2026-07-07-context-usage-nudge.md.
-   **Needs a fresh session to activate** -- Claude Code loads hook config at session start and can't
-   hot-swap (learnings/hooks-require-session-restart.md).
-4. **Agent's own context-mode/graphify usage was found to be low** -- an in-session audit found the
-   agent defaulting to plain `Bash` with manual truncation instead of `ctx_execute`, and never calling
-   `graphify query` at all despite a structural-lookup opportunity. Fixed via a standing behavioral
-   memory (`feedback_treat_context_as_cache.md`, in agent memory, not this repo) instructing the agent
-   to default to these tools whenever it wouldn't degrade response quality. decisions/0004 designs a
-   deterministic way to verify this actually saves tokens, using real transcripts -- not yet built.
-5. **Fault-tolerance audit of compass itself (this session)** -- stepped back to review compass as
-   long-lived software, not just a working prototype. Confirmed the "deterministic filters, prompts as
-   suggestions" pattern holds in the core (compass-check.sh, learning-dedup, context nudge). Found 9
-   gaps at the edges (Claude Code format coupling, install topology, cache versioning, etc.) --
-   see logs/2026-07-07-fault-tolerance-audit.md for the full list. Now working through them, starting
-   with CI.
+1. **graphify pilot** -- integration complete (decisions/0001, deterministic-only mode). Usage has
+   been zero across every real session measured so far (see thread 3) -- being addressed
+   deterministically rather than by continuing to wait for organic adoption.
+2. **Context-usage nudge** -- token-based `Stop` hook (`hooks/session-context-nudge.py` +
+   `tools/session-context/session_status.py`) reading real API `usage` data, nudges at 75% of a 200k
+   window. Installed globally. Not yet confirmed firing in a real session (needs a session start after
+   install to activate -- learnings/hooks-require-session-restart.md).
+3. **Fault-tolerance audit + deterministic tool routing (2026-07-07/08)** -- stepped back to review
+   compass as long-lived software rather than a working prototype. Findings and full gap list:
+   logs/2026-07-07-fault-tolerance-audit.md. Core pattern (deterministic filters, prompts as
+   suggestions) holds; gaps are at the edges. Working the backlog below in priority order. First fix
+   (CI) is done; second fix (deterministic tool-routing guard, decisions/0005) is built, tested, and
+   installed, but **not yet confirmed firing in a real session** -- same activation caveat as thread 2.
 
-## In flight
-- **Fault-tolerance audit backlog (logs/2026-07-07-fault-tolerance-audit.md), in priority order:**
-  1. No CI -- `tests/run_tests.sh` never runs automatically. **In progress this session.**
-  2. `session_status.py`/`tool_efficiency.py` don't defensively handle corrupted/partial transcript
-     JSONL lines -- can throw uncaught inside the `Stop` hook path. Next up after CI.
-  3. Global skills/hooks symlinked via `install.sh --dev` from this branch, not `$DOTFILES/compass` --
-     no detection if the branch is later deleted/rebased.
-  4. `register_hook.py`/`install.sh`'s settings.json mutation has no post-write validation.
-  5. Embedding cache keyed by content hash only, not `(model_name, hash)` -- stale vectors on retune.
-  6. No inventory of which repos have a compass, to push SPEC.md version bumps out to.
-  7. No `.compass/`-directory-level version marker (layout, not just content-convention, drift).
-  8. graphify has no `UNAVAILABLE`-equivalent signal if its CLI output format changes upstream.
-  9. `logs/archive.md`/`experiments/archive.md` grow unbounded once the entry cap archives into them.
-- **decisions/0004's `tool_efficiency.py` is designed but not implemented.** Attributes per-turn token
-  deltas to the tool calls that preceded them (Bash vs. ctx_execute vs. graphify), aggregated by tool
-  name, reusing `session_status.py`'s transcript-loading helpers. Next concrete task if picking this
-  thread back up.
-- **Uncommitted**: everything from this session (session-context-nudge feature + install.sh/jq->python3
-  swap + decisions/0004 + this file) is still working-tree changes as of this wrap-up, pending the
-  user's commit/push decision.
-- The graphify pilot itself continues in parallel -- now with a behavioral nudge to actually use it,
-  worth revisiting whether usage picks up in future sessions.
-- **This repo's own local `.git/hooks/pre-commit` backstop is still not installed** (carried over from
-  a prior session, unrelated to this one's work) -- needs an explicit go-ahead.
+## Audit backlog (logs/2026-07-07-fault-tolerance-audit.md), in priority order
+1. ~~No CI~~ -- **done.** `.github/workflows/ci.yml` runs both test suites on every push/PR.
+2. ~~Tool routing left to agent judgment~~ -- **done, unconfirmed live.** `hooks/tool-routing-guard.py`
+   (decisions/0005) denies heavy/broad `Bash` calls toward `ctx_execute`/`graphify query`, with a
+   per-session retry safety valve. Next: start a fresh session and verify it actually fires.
+3. `session_status.py`/`tool_efficiency.py` don't defensively handle corrupted/partial transcript
+   JSONL lines -- can throw uncaught inside the `Stop` hook path. **Next up.**
+4. Global skills/hooks are symlinked via `install.sh --dev` from this branch, not `$DOTFILES/compass`
+   -- no detection if the branch is later deleted/rebased.
+5. `register_hook.py`/`install.sh`'s settings.json mutation has no post-write validation.
+6. Embedding cache (`.compass/learnings/.embedding-cache.json`) keyed by content hash only, not
+   `(model_name, hash)` -- stale vectors on retune.
+7. No inventory of which repos have a compass, to push `SPEC.md` version bumps out to.
+8. No `.compass/`-directory-level version marker (layout, not just content-convention, drift).
+9. graphify has no `UNAVAILABLE`-equivalent signal if its CLI output format changes upstream.
+10. `logs/archive.md`/`experiments/archive.md` grow unbounded once the entry cap archives into them.
 
 ## Known issues / things to remember
 - Global `~/.claude/skills/*` and hooks are symlinked to *this* repo on the `graphify-integration`
-  branch (from running `install.sh --dev` here) -- not the usual `$DOTFILES`-managed install.
-  `install.sh` refuses to re-run from here without `--dev` since this checkout isn't `$DOTFILES/compass`.
-- `install.sh` now hard-requires `python3` (added this session, replacing a `jq` dependency for hook
-  registration) in addition to `git`/`claude`.
-- `graphify-out/` and `.compass/learnings/.embedding-cache.json` are gitignored/regenerable, as before.
+  branch (from running `install.sh --dev` here) -- not the usual `$DOTFILES`-managed install. This is
+  audit-backlog item 4 above, not yet fixed.
+- `install.sh` hard-requires `python3` (used for hook registration, including the JSON `matcher`
+  field `PreToolUse` hooks need) in addition to `git`/`claude`.
+- `graphify-out/` and `.compass/learnings/.embedding-cache.json` are gitignored/regenerable.
+- `.git/hooks/pre-commit` backstop (runs `compass-check.sh` check-only) is installed in this repo.
 
 ## Next steps
-- Start a new session and confirm the token-based `Stop` hook actually fires near the 75% threshold.
-- Continue the graphify pilot; revisit merge/revert once both the pilot and the new behavioral nudge
-  have had a real trial run.
-- **Design deterministic Bash-vs-ctx_execute routing.** `tool_efficiency.py` (built this session, see
-  decisions/0004's caveat addendum) surfaced that relying on the agent's own judgment
-  (`feedback_treat_context_as_cache.md`, a system-prompt-level nudge) is inherently non-deterministic
-  and unmeasurable cleanly -- the agent decides per-call whether to truncate via Bash or route to
-  ctx_execute, which is exactly what makes the tool_efficiency comparison apples-to-oranges. Direction
-  floated, not yet decided: a deterministic gate instead of agent discretion -- e.g. an
-  allowlist of small/cheap Bash commands (quick git status/log, single-file greps, short lookups) that
-  stay on Bash, with everything else defaulting to ctx_execute; possibly a file-size/line-count
-  threshold (e.g. more than a few dozen lines forces ctx). Goal: eliminate the biggest muddying
-  factors in context deterministically, not via agent-prompt judgment calls. Needs its own ADR once a
-  concrete mechanism is chosen.
-
-## Completed this session (2026-07-07, second pass)
-- Installed the local `.git/hooks/pre-commit` backstop (runs `compass-check.sh` check-only) --
-  closes the item decisions/0002 left pending; user explicitly approved.
-- Built `tools/session-context/tool_efficiency.py` per decisions/0004: attributes per-turn token
-  deltas to tool calls across all transcripts, reusing `session_status.py`'s `context_total` helper.
-  Ran against all 5 real sessions in this project -- see decisions/0004 for the measurement-bias
-  caveat found while interpreting its output.
+1. Start a fresh Claude Code session in this repo to confirm both the context-usage `Stop` hook and
+   the new `tool-routing-guard.py` `PreToolUse` hook actually fire as designed.
+2. After a handful of real sessions accumulate under the routing guard, re-run
+   `tool_efficiency.py --all` to check whether `ctx_execute`/`graphify` usage actually increased --
+   the thing the prompt-only nudge failed to move.
+3. Continue the audit backlog: item 3 (defensive transcript parsing) next.

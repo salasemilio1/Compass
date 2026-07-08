@@ -148,6 +148,9 @@ link_hook() {
     "$SCRIPT_DIR/hooks/session-context-nudge.py" \
     "$COMPASS_HOME/hooks/session-context-nudge.py" || true
   create_symlink \
+    "$SCRIPT_DIR/hooks/tool-routing-guard.py" \
+    "$COMPASS_HOME/hooks/tool-routing-guard.py" || true
+  create_symlink \
     "$SCRIPT_DIR/tools/session-context" \
     "$COMPASS_HOME/tools/session-context" || true
 }
@@ -160,10 +163,22 @@ settings_has_hook() {
   [ -f "$settings_file" ] && grep -q "$marker" "$settings_file"
 }
 
+print_manual_hook_block() {
+  local event="$1" hook_command="$2" matcher="$3"
+  printf '    "hooks": {\n'
+  if [ -n "$matcher" ]; then
+    printf '      "%s": [{"matcher": "%s", "hooks": [{"type": "command", "command": "%s"}]}]\n' "$event" "$matcher" "$hook_command"
+  else
+    printf '      "%s": [{"hooks": [{"type": "command", "command": "%s"}]}]\n' "$event" "$hook_command"
+  fi
+  printf '    }\n'
+}
+
 register_event_hook() {
   local event="$1"
   local hook_command="$2"
   local marker="$3"
+  local matcher="${4:-}"
   local settings_file="$COMPASS_HOME/settings.json"
 
   if settings_has_hook "$marker"; then
@@ -174,23 +189,19 @@ register_event_hook() {
   if ! command_exists python3; then
     log_error "python3 not found — cannot register the $event hook automatically"
     log_error "add this block to $settings_file manually:"
-    printf '    "hooks": {\n'
-    printf '      "%s": [{"hooks": [{"type": "command", "command": "%s"}]}]\n' "$event" "$hook_command"
-    printf '    }\n'
+    print_manual_hook_block "$event" "$hook_command" "$matcher"
     return 1
   fi
 
   mkdir -p "$(dirname "$settings_file")"
 
-  if python3 "$SCRIPT_DIR/scripts/register_hook.py" "$settings_file" "$event" "$hook_command"; then
+  if python3 "$SCRIPT_DIR/scripts/register_hook.py" "$settings_file" "$event" "$hook_command" "$matcher"; then
     log_success "added $event hook to $settings_file"
     return 0
   fi
 
   log_error "failed to update $settings_file — add this block manually:"
-  printf '    "hooks": {\n'
-  printf '      "%s": [{"hooks": [{"type": "command", "command": "%s"}]}]\n' "$event" "$hook_command"
-  printf '    }\n'
+  print_manual_hook_block "$event" "$hook_command" "$matcher"
   return 1
 }
 
@@ -200,6 +211,10 @@ register_hook() {
 
 register_context_nudge_hook() {
   register_event_hook "Stop" "$COMPASS_HOME/hooks/session-context-nudge.py" "session-context-nudge.py"
+}
+
+register_tool_routing_hook() {
+  register_event_hook "PreToolUse" "$COMPASS_HOME/hooks/tool-routing-guard.py" "tool-routing-guard.py" "Bash"
 }
 
 # --- context-mode MCP ---------------------------------------------------------
@@ -303,6 +318,10 @@ main() {
 
   log_info "Stop hook: context-usage nudge  ($COMPASS_HOME/settings.json)"
   register_context_nudge_hook
+  echo
+
+  log_info "PreToolUse hook: deterministic tool routing  ($COMPASS_HOME/settings.json)"
+  register_tool_routing_hook
   echo
 
   log_info "context-mode MCP (token efficiency)"

@@ -72,4 +72,8 @@ The install script sets up:
 
 - Three slash commands linked into `~/.claude/skills/`
 - A `SessionStart` hook that nudges you to run `/warm-up` when you open a repo that has `.compass/`
+- A `Stop` hook that nudges toward `/wrap-up` once context usage crosses 75% of the window
+- A `PreToolUse` hook that deterministically routes heavy `Bash` calls (broad greps/finds, full
+  diffs, unbounded logs, test/build runners) toward `graphify query` or `ctx_execute` instead of
+  leaving it to agent judgment — see `.compass/decisions/0005-deterministic-tool-routing-guard.md`
 - Nothing else — no shell config changes, no package installs

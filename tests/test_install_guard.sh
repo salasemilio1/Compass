@@ -66,6 +66,7 @@ echo "-- smoke test: linking steps land under an isolated COMPASS_HOME"
     link_hook
     register_hook
     register_context_nudge_hook
+    register_tool_routing_hook
   " 2>&1)"
   rc=$?
   assert_eq "0" "$rc" "smoke: guarded linking steps succeed"
@@ -74,11 +75,14 @@ echo "-- smoke test: linking steps land under an isolated COMPASS_HOME"
   assert_eq "$REPO_ROOT/skills/warm-up" "$(readlink "$home/skills/warm-up" 2>/dev/null || echo MISSING)" "smoke: warm-up symlink points at this checkout"
   assert_eq "1" "$([ -L "$home/hooks/compass-session-start.sh" ] && echo 1 || echo 0)" "smoke: SessionStart hook symlinked"
   assert_eq "1" "$([ -L "$home/hooks/session-context-nudge.py" ] && echo 1 || echo 0)" "smoke: Stop hook (session-context-nudge.py) symlinked"
+  assert_eq "1" "$([ -L "$home/hooks/tool-routing-guard.py" ] && echo 1 || echo 0)" "smoke: PreToolUse hook (tool-routing-guard.py) symlinked"
   assert_eq "1" "$([ -L "$home/tools/session-context" ] && echo 1 || echo 0)" "smoke: tools/session-context symlinked"
 
   assert_file_contains "$home/settings.json" "compass-session-start.sh" "smoke: settings.json registers the SessionStart hook"
   assert_file_contains "$home/settings.json" "$home/hooks/compass-session-start.sh" "smoke: settings.json points at the isolated COMPASS_HOME, not the real one"
   assert_file_contains "$home/settings.json" "session-context-nudge.py" "smoke: settings.json registers the Stop hook"
+  assert_file_contains "$home/settings.json" "tool-routing-guard.py" "smoke: settings.json registers the PreToolUse hook"
+  assert_file_contains "$home/settings.json" '"matcher": "Bash"' "smoke: PreToolUse hook is scoped to the Bash matcher"
 
   echo "  note: real \$HOME/.claude was never referenced by this test (COMPASS_HOME overridden throughout)"
 }
