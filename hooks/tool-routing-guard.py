@@ -24,6 +24,14 @@ Never denies on internal error -- printing nothing (allow, deferring to normal p
 flow) is always the fallback, since Claude Code's own hook runtime fails *closed* on a
 crash/timeout; this script must not compound that by being the thing that crashes.
 
+Also never denies a `run_in_background` call: every rule here exists to redirect a call
+whose *output* should be captured/summarized elsewhere (ctx_execute/graphify), but a
+backgrounded command (e.g. `npm run dev` to start a dev server) isn't run to capture a
+finished result at all -- routing it through ctx_execute would mean waiting on a process
+that never exits. This matters in practice: TEST_BUILD_RUNNER matches any `npm run
+<script>`, not just tests, so an ordinary dev-server start would otherwise be denied on
+first use every session.
+
 Usage: reads a PreToolUse hook payload on stdin, prints a PreToolUse decision on stdout
 (or nothing, to allow).
 """
@@ -115,10 +123,14 @@ def main() -> int:
         if payload.get("tool_name") != "Bash":
             return 0
 
-        command = payload.get("tool_input", {}).get("command")
+        tool_input = payload.get("tool_input", {})
+        command = tool_input.get("command")
         session_id = payload.get("session_id")
         cwd = payload.get("cwd")
         if not command or not session_id or not cwd:
+            return 0
+
+        if tool_input.get("run_in_background"):
             return 0
 
         graph_exists = (Path(cwd) / "graphify-out" / "graph.json").is_file()

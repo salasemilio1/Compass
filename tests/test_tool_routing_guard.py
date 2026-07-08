@@ -129,6 +129,17 @@ def test_main_safety_valve_allows_second_denial_in_same_session(tmp_path):
     assert second is None
 
 
+def test_main_allows_backgrounded_heavy_command(tmp_path):
+    session_id = str(uuid.uuid4())
+    payload = {
+        "tool_name": "Bash",
+        "tool_input": {"command": "npm run dev", "run_in_background": True},
+        "session_id": session_id,
+        "cwd": str(tmp_path),
+    }
+    assert run_hook(payload) is None
+
+
 def test_main_malformed_stdin_fails_open():
     result = subprocess.run(
         [sys.executable, str(MODULE_PATH)],
