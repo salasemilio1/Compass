@@ -7,8 +7,8 @@ detect a repo's `AGENTS.md` drifting behind the spec it was scaffolded from.
 directory following this spec. Its purpose: **orient any agent in the codebase cheaply**, so sessions
 can be disposable and knowledge lives in the repo instead of in a conversation.
 
-This spec is the contract. The `template/` directory beside it is the concrete scaffold that
-`/init-compass` copies into a target repo.
+This spec is the contract. `cli/compass_cli/template/` is the concrete scaffold that the `compass`
+CLI's `init` command copies into a target repo (see `/init-compass`, which wraps it).
 
 ---
 

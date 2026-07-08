@@ -175,6 +175,36 @@ register_tool_routing_hook() {
   register_event_hook "PreToolUse" "$COMPASS_HOME/hooks/tool-routing-guard.py" "tool-routing-guard.py" "Bash"
 }
 
+# --- compass CLI (compass init) ------------------------------------------------
+
+# Installs the `compass` command (currently just `compass init`) from this checkout's
+# cli/ subdirectory. Always reinstalls, same as install_path -- rerunning install.sh is
+# the update mechanism, and a local-path install has no version to compare against.
+install_compass_cli() {
+  local cli_dir="$SCRIPT_DIR/cli"
+
+  local installer=""
+  if command_exists uv; then
+    installer="uv tool install --reinstall $cli_dir"
+  elif command_exists pipx; then
+    installer="pipx install --force $cli_dir"
+  elif command_exists pip; then
+    installer="pip install --user --force-reinstall $cli_dir"
+  else
+    log_warn "no uv/pipx/pip found — skipping compass CLI install (optional)"
+    log_warn "to install later: uv tool install $cli_dir"
+    return 0
+  fi
+
+  log_info "installing compass CLI ($installer)"
+  if $installer >/dev/null 2>&1 && command_exists compass; then
+    log_success "compass CLI installed (run: compass init)"
+  else
+    log_warn "compass CLI install failed — run manually:"
+    log_warn "  $installer"
+  fi
+}
+
 # --- context-mode MCP ---------------------------------------------------------
 
 install_context_mode() {
@@ -271,6 +301,10 @@ main() {
   register_tool_routing_hook
   echo
 
+  log_info "compass CLI (compass init)"
+  install_compass_cli
+  echo
+
   log_info "context-mode MCP (token efficiency)"
   install_context_mode
   echo
@@ -287,8 +321,8 @@ main() {
   log_success "compass install complete"
   echo
   log_info "next steps:"
-  log_info "  open any project in Claude Code"
-  log_info "  run /init-compass to set it up"
+  log_info "  cd into any project and run: compass init"
+  log_info "  (or, in Claude Code: /init-compass, which runs compass init for you)"
   log_info "  see README.md for the full guide"
 }
 

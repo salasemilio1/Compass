@@ -1,0 +1,21 @@
+[project]
+name = "compass-cli"
+version = "0.1.0"
+description = "Lightweight CLI that scaffolds the compass agent-memory protocol into a repo."
+requires-python = ">=3.9"
+dependencies = [
+    "click>=8.0",
+]
+
+[project.scripts]
+compass = "compass_cli.main:cli"
+
+[tool.setuptools.packages.find]
+include = ["compass_cli*"]
+
+[tool.setuptools.package-data]
+compass_cli = ["template/*.md"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

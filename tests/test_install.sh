@@ -109,4 +109,60 @@ echo "-- register_event_hook: without python3, fails loudly instead of silently 
   assert_file_contains <(echo "$out") "add this block" "no python3: still prints manual fallback instructions"
 }
 
+echo "-- install_compass_cli: installs a working 'compass' command when uv is available"
+{
+  if command -v uv >/dev/null 2>&1; then
+    tool_dir="$(new_tmpdir)"
+    tool_bin="$(new_tmpdir)"
+
+    out="$(UV_TOOL_DIR="$tool_dir" UV_TOOL_BIN_DIR="$tool_bin" PATH="$tool_bin:$PATH" COMPASS_TEST_SOURCE=1 bash -c "
+      source '$INSTALL_SH'
+      install_compass_cli
+      echo \"FAILURES=\$INSTALL_FAILURES\"
+    " 2>&1)"
+    rc=$?
+    assert_eq "0" "$rc" "uv available: install_compass_cli succeeds"
+    assert_eq "1" "$([ -x "$tool_bin/compass" ] && echo 1 || echo 0)" "uv available: compass executable is installed"
+    assert_exit_code "0" "uv available: installed compass command is runnable" \
+      env PATH="$tool_bin:$PATH" "$tool_bin/compass" --help
+    assert_file_contains <(echo "$out") "FAILURES=0" "uv available: does not count toward INSTALL_FAILURES"
+  else
+    echo "  skip: uv not available on this machine, cannot exercise the real install path"
+  fi
+}
+
+echo "-- install_compass_cli: warns without failing when uv/pipx/pip are all unavailable"
+{
+  out="$(COMPASS_TEST_SOURCE=1 bash -c "
+    source '$INSTALL_SH'
+    command_exists() { case \"\$1\" in uv|pipx|pip) return 1 ;; *) command -v \"\$1\" >/dev/null 2>&1 ;; esac }
+    install_compass_cli
+    echo \"FAILURES=\$INSTALL_FAILURES\"
+  " 2>&1)"
+  rc=$?
+  assert_eq "0" "$rc" "no uv/pipx/pip: install_compass_cli still returns success (optional dependency)"
+  assert_file_contains <(echo "$out") "no uv/pipx/pip found" "no uv/pipx/pip: warns naming the missing dependency"
+  assert_file_contains <(echo "$out") "FAILURES=0" "no uv/pipx/pip: does not count toward INSTALL_FAILURES"
+}
+
+echo "-- install_compass_cli: warns without failing when the installer command itself fails"
+{
+  fake_bin="$(new_tmpdir)"
+  cat > "$fake_bin/uv" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+  chmod +x "$fake_bin/uv"
+
+  out="$(PATH="$fake_bin:$PATH" COMPASS_TEST_SOURCE=1 bash -c "
+    source '$INSTALL_SH'
+    install_compass_cli
+    echo \"FAILURES=\$INSTALL_FAILURES\"
+  " 2>&1)"
+  rc=$?
+  assert_eq "0" "$rc" "installer fails: install_compass_cli still returns success (optional dependency)"
+  assert_file_contains <(echo "$out") "compass CLI install failed" "installer fails: warns that the install failed"
+  assert_file_contains <(echo "$out") "FAILURES=0" "installer fails: does not count toward INSTALL_FAILURES"
+}
+
 report_and_exit

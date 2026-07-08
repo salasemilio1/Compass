@@ -31,9 +31,14 @@ Use these as slash commands inside any Claude Code session.
 | `/warm-up` | Load project context at the start of a session |
 | `/wrap-up` | Save what you built at the end of a session |
 
+`/init-compass` wraps the `compass` CLI, which does the actual scaffolding
+(`compass init --mode committed\|branch-local`) deterministically — directories, `INDEX.md`,
+`.gitignore`, `AGENTS.md`. That means it also works standalone, from a plain terminal, with no
+Claude Code dependency — useful if you're wiring compass into another agent's workflow.
+
 ## How a session works
 
-1. Run `/init-compass` once when you start a new project.
+1. Run `/init-compass` once when you start a new project (or `compass init` directly).
 2. Start each session with `/warm-up` — it reads the index and loads only what's relevant.
 3. Do your work.
 4. End with `/wrap-up` — it reads your git diff and drafts a log entry for you to review before saving.
@@ -74,4 +79,6 @@ The install script sets up:
 - A `PreToolUse` hook that deterministically routes heavy `Bash` calls (broad greps/finds, full
   diffs, unbounded logs, test/build runners) toward `graphify query` or `ctx_execute` instead of
   leaving it to agent judgment — see `.compass/decisions/0005-deterministic-tool-routing-guard.md`
-- Nothing else — no shell config changes, no package installs
+- The `compass` CLI (`compass init`), installed via `uv tool`/`pipx`/`pip` from this checkout
+- No shell config changes; the only package installs are the optional/adjacent tools above
+  (compass CLI, graphify, context-mode)

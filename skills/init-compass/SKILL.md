@@ -5,14 +5,20 @@ description: Scaffold the compass agent-memory protocol (.compass/) into the cur
 
 # init-compass
 
-Scaffold the `compass` protocol into the current repository by creating a `.compass/` directory from the
-template, then seeding it with what's already knowable about the project. The full protocol is defined in
-`SPEC.md` in the compass repo.
+Scaffold the `compass` protocol into the current repository, then seed it with what's already
+knowable about the project. The full protocol is defined in `SPEC.md` in the compass repo.
+
+The mechanical scaffolding (directories, `INDEX.md`, `.gitignore`, `AGENTS.md`, `CLAUDE.md`) is
+handled deterministically by the `compass` CLI (`cli/`), not by agent judgment — this closed a real
+bug where the old markdown-only version searched the filesystem for a template directory
+(`$DOTFILES/compass/template`, `~/Dev/*/compass/template`, `~/compass/template`) that often didn't
+exist post-install. Only the parts that require actually reading and understanding the repo are
+left to you.
 
 ## Steps
 
-1. **Refuse to clobber.** If `.compass/` already exists, stop and report it. Never overwrite an existing
-   compass without explicit confirmation.
+1. **Refuse to clobber.** If `.compass/` already exists, stop and report it — `compass init` also
+   refuses, but check first so you don't need to parse its error.
 
 2. **Choose the visibility mode** — ask the user, defaulting by signal:
    - **`committed`** — repos the user owns/maintains. Shared categories (`context`, `architecture`,
@@ -23,49 +29,22 @@ template, then seeding it with what's already knowable about the project. The fu
    Signal for the default: if the user is on a feature branch of a repo they didn't create, lean
    `branch-local`; otherwise `committed`. Confirm before proceeding.
 
-3. **Create `.compass/`.** Copy the structure from the compass template: `INDEX.md` plus the seven
-   category directories (`scratch/` is always gitignored). Resolve the template directory in this
-   order: `$DOTFILES/compass/template` (dotfiles users with compass as a submodule), then search
-   `~/Dev/` for any directory named `compass/template`, then `~/compass/template`. If none is found,
-   generate the structure directly from the compass SPEC (the category set and conventions are fully
-   specified there) — the template is a convenience, not a hard dependency.
+3. **Run the CLI**: `compass init --mode <committed|branch-local>`. This creates the seven category
+   directories, seeds `INDEX.md` from the bundled template, wires `.gitignore`, and creates/appends
+   `AGENTS.md` (stamped with the compass spec version so `scripts/compass-check.sh` can later warn on
+   drift) and a `CLAUDE.md` pointer. If the `compass` command isn't installed, tell the user to run
+   `install.sh` from the compass repo, or fall back to generating the structure directly from
+   `SPEC.md` (the category set and conventions are fully specified there).
 
-4. **Wire gitignore:**
-   - Always add `.compass/scratch/` to the repo's `.gitignore`.
-   - If mode is `branch-local`, add the whole `.compass/` to `.gitignore` instead.
+4. **Seed `INDEX.md`'s project description** by inspecting the repo (read README, package manifests,
+   top-level layout). Fill in the one-line description and stack line that `compass init` left as
+   placeholders. Leave category sections empty (`_none yet_`) — entries are earned by real work, not
+   invented.
 
-5. **Seed `INDEX.md`** by inspecting the repo (read README, package manifests, top-level layout). Fill in
-   the project name, one-line description, stack, mode, and today's date. Leave category sections empty
-   (`_none yet_`) — entries are earned by real work, not invented.
-
-6. **Optionally seed `context/overview.md`** from the README/manifests if there's enough to write a
+5. **Optionally seed `context/overview.md`** from the README/manifests if there's enough to write a
    faithful, non-speculative overview. Keep it short. If unsure, leave it for the user.
 
-7. **Create `AGENTS.md` in the repo root.** This makes the repo immediately usable by any agent
-   (Claude, Gemini, Cursor, Copilot, etc.), not just Claude Code. The file should be short — point to
-   compass and state the behavioral defaults. Stamp it with the compass spec version being scaffolded
-   from (see `compass/SPEC.md`'s `**Spec version:**` line) so `scripts/compass-check.sh` can later warn
-   if this repo's copy drifts behind the spec it was set up against:
-   ```markdown
-   <!-- compass-spec-version: 1 -->
-   # Agent instructions
-
-   This repo uses the compass protocol for agent memory. Before substantial work:
-   1. Read `.compass/INDEX.md` — the retrieval map.
-   2. Read `.compass/context/current-state.md` — where the work stands and what's next.
-
-   At task end, run the wrap-up workflow (git-diff-first, human-reviewed) to capture knowledge back
-   into `.compass/`. Never write `.compass/` silently.
-
-   Coding behavior and style: see `$DOTFILES/claude/AGENTS.md` or ask the repo owner for conventions.
-   ```
-   If `AGENTS.md` already exists, append the compass section (including the spec-version comment)
-   rather than overwriting.
-
-8. **Point CLAUDE.md at compass.** If the repo has a `CLAUDE.md`, add a short line directing agents to
-   read `.compass/INDEX.md` first. If it doesn't, offer to create a minimal one that does so.
-
-9. **Report** what was created and the chosen mode, and remind the user that capture happens via
+6. **Report** what was created and the chosen mode, and remind the user that capture happens via
    `wrap-up` / `new-experiment` (human-reviewed) — compass is never written silently.
 
 ## Notes

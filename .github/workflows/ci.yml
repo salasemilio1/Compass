@@ -23,3 +23,6 @@ jobs:
 
       - name: Run python test suite
         run: uv run --with pytest pytest tests/ -v
+
+      - name: Run compass CLI test suite
+        run: uv run --project cli --with pytest pytest cli/tests -v
