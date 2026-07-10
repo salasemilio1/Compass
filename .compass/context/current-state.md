@@ -1,58 +1,37 @@
 # current state
 
-Date: 2026-07-08
-Commit: 083360e52ad5ccae50ff3f14e3d2e2d627e128e8
+Date: 2026-07-10
+Commit: cfa70eb5db7d4c9073b725f111fedb1ad073c1e3
 
 ## Where things stand
-Compass is `main`, steady-state, maintenance-mode. This session was a proactive audit ("make sure the
-last changes went smooth, patch issues before they hit me") plus one feature built from a design
-discussion that came out of it.
-
-1. **Audit finding, fixed:** `hooks/tool-routing-guard.py` denied backgrounded dev-server commands
-   (`npm run dev` + `run_in_background: true`) on first use every session, redirecting them toward
-   `ctx_execute` -- nonsensical for a process that never exits. Fixed by exempting any
-   `run_in_background` call from all routing rules. See
-   `logs/2026-07-08-tool-routing-guard-background-fix.md`,
-   `learnings/pretooluse-guard-must-exempt-backgrounded-commands.md`.
-2. **New: `compass init` CLI (`cli/`).** Extracted `init-compass`'s mechanical scaffolding (dirs,
-   `INDEX.md`, `.gitignore`, `AGENTS.md`, `CLAUDE.md`) out of the markdown skill into a real,
-   lightweight Click CLI, installed via `install.sh` (uv/pipx/pip fallback, same pattern as
-   graphify). This fixes the previously-deferred template-path bug by construction -- the template is
-   now bundled inside the package (`importlib.resources`), not searched for on disk. `warm-up`/
-   `wrap-up` were evaluated for the same treatment and explicitly scoped out (judgment-heavy, weak
-   fit for a CLI). See `decisions/0007-compass-init-as-cli.md`,
-   `logs/2026-07-08-compass-init-cli.md`.
-
-Verified this session (not yet re-verified after next steps below):
-- Confirmed the real global install (`~/.claude/`) on this machine matches HEAD byte-for-byte (every
-  hook, tool, skill diffed) -- the copy-based `install.sh` from decisions/0006 is genuinely deployed,
-  not just claimed.
-- `graphify-integration` branch is already gone (local and remote) -- decisions/0006's cleanup step
-  is done.
-- Full suite green: bash (`tests/run_tests.sh`, now 29 checks in `test_install.sh`), root python (71
-  tests), and the new `cli/tests` (12 tests).
+Compass is `main`, steady-state, maintenance-mode. The prior session's `compass init` CLI
+(decisions/0007) and tool-routing-guard fix are committed and confirmed live. This session was
+verification + presentation prep, not new development: confirmed the CLI actually works end-to-end,
+built diagrams explaining compass's workflow, and — under user pressure-testing — found one real,
+previously-unverified gap in the learnings-dedup embedder (see
+`learnings/dedup-stage3-never-verified-with-real-embedder.md`).
 
 ## Known issues / things to remember
-- `install.sh` hard-requires `python3` (hook registration) and now also benefits from
-  `uv`/`pipx`/`pip` (compass CLI, graphify) and `node` (context-mode) -- all three of the latter
-  degrade to a warning, never a hard failure.
+- **Stray backup artifacts in `~/.claude`** (global, not repo state): `skills/wrap-up.backup-20260704100310`,
+  `skills/init-compass.backup-20260704100310`, `skills/warm-up.backup-20260704100310`, and
+  `hooks/compass-session-start.sh.backup-20260704100310` are leftover symlinks from before
+  decisions/0006 switched install.sh to copying. Not referenced by `settings.json`, not a live risk,
+  but dead weight. **Delete these next session.**
+- **Learnings-dedup stage 3 has never fired for real** — calibrated only against mock embedder
+  vectors, never the real `fastembed`/MiniLM model. Worth an opportunistic real-world test (run
+  `check_similarity.py` with a genuine near-duplicate pair and confirm a real `POSSIBLE_DUPLICATE`
+  verdict) but not urgent — the design is sound even if unconfirmed, and dedup is a best-effort
+  filter, not a gate.
+- `install.sh` hard-requires `python3` (hook registration) and benefits from `uv`/`pipx`/`pip`
+  (compass CLI, graphify) and `node` (context-mode) — all three of the latter degrade to a warning,
+  never a hard failure.
 - `graphify-out/` and `.compass/learnings/.embedding-cache.json` are gitignored/regenerable.
 - `.git/hooks/pre-commit` backstop (runs `compass-check.sh` check-only) is installed in this repo.
-- The `compass` command/distribution name isn't checked for PyPI collisions -- fine for a local-only
-  install; revisit if `compass-cli` is ever published (see decisions/0007's naming note).
 
 ## Next steps
-1. **Commit this session's changes** (uncommitted at time of writing: the tool-routing-guard fix, the
-   entire `cli/` package, install.sh/README/SPEC/skill updates, and this wrap-up's `.compass/`
-   entries).
-2. Watch a few ordinary sessions to confirm `compass init` behaves well when an agent drives it
-   (not just the direct-terminal smoke test done this session) -- particularly whether the
-   mode-selection prompt or `--mode` flag path gets exercised correctly from inside Claude Code.
-3. Re-run `install.sh` on this machine (or confirm it already ran) so the fixed
-   `tool-routing-guard.py` and the new `compass` CLI are actually live, not just committed to the
-   repo -- diff `~/.claude/hooks/tool-routing-guard.py` against HEAD to confirm.
-4. Revisit decisions/0007's follow-up question opportunistically, not proactively: is a
-   `compass status` CLI command worth it given `compass-session-start.sh` already covers the same
-   deterministic floor for warm-up.
+1. **Commit this session's `AGENTS.md` change** (documents `session_status.py` for token questions).
+2. Delete the four stray `*.backup-20260704100310` files under `~/.claude/` (see above).
+3. Opportunistically verify learnings-dedup stage 3 against a real `fastembed` run, not proactively.
+4. Continue watching `compass init` behave well when agent-driven across ordinary sessions.
 5. From here on, compass stays maintenance-mode: fix real breakage as it's found, don't proactively
-   expand scope beyond what this session already added.
+   expand scope.

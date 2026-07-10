@@ -4,7 +4,7 @@
 > repo so sessions start informed instead of cold, plus skills to load/save it (`warm-up`, `wrap-up`,
 > `init-compass`) and a `SessionStart` hook that nudges agents to use it.
 
-**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context, compass CLI), Markdown (skills, spec, template)   ·   **Mode:** committed, steady-state (main)   ·   **Updated:** 2026-07-08 (post-hardening audit + compass init CLI)
+**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context, compass CLI), Markdown (skills, spec, template)   ·   **Mode:** committed, steady-state (main)   ·   **Updated:** 2026-07-10 (CLI verification + dedup embedder audit)
 
 ## Start here
 - New to the project? Read: [context/overview.md](context/overview.md), [SPEC.md](../SPEC.md)
@@ -16,7 +16,7 @@
 
 ## context
 <!-- one line per entry; this is a retrieval hint, not a summary -->
-- [current-state.md](context/current-state.md) — audit fixed a tool-routing-guard bug (denied backgrounded dev-server commands) and built the compass init CLI (decisions/0007); uncommitted, commit is the immediate next step
+- [current-state.md](context/current-state.md) — compass init CLI verified working end-to-end; stray backup symlinks in ~/.claude flagged for deletion next session; dedup stage 3 flagged as never verified against a real embedder
 - [overview.md](context/overview.md) — what compass is, the three-layer model (compass/context-mode/graphify), repo layout
 
 ## architecture
@@ -37,6 +37,7 @@
 
 ## logs
 <!-- newest first -->
+- [2026-07-10-presentation-prep-and-dedup-audit.md](logs/2026-07-10-presentation-prep-and-dedup-audit.md) — verified compass CLI end-to-end (no bugs), built presentation diagrams, found dedup stage 3 has never been verified against a real embedder, flagged stray backup symlinks in ~/.claude for cleanup
 - [2026-07-08-compass-init-cli.md](logs/2026-07-08-compass-init-cli.md) — extracted init-compass's mechanical scaffolding into a real `compass` CLI (cli/), bundled template via importlib.resources, wired into install.sh/CI/skill (decisions/0007)
 - [2026-07-08-tool-routing-guard-background-fix.md](logs/2026-07-08-tool-routing-guard-background-fix.md) — fixed tool-routing-guard.py denying backgrounded dev-server commands (npm run dev) by exempting run_in_background calls from all routing rules
 - [2026-07-08-hardening-and-install-rework.md](logs/2026-07-08-hardening-and-install-rework.md) — closed the fault-tolerance audit backlog (loud-not-silent fixes across compass-check.sh/register_hook.py/session_status.py/tool-routing-guard.py), merged graphify-integration to main, reworked install.sh to copy instead of symlink (decisions/0006); caught and reverted a false "typo fix" to graphify's real graphifyy package name
@@ -50,6 +51,7 @@
 - [2026-07-06-graphify-integration.md](logs/2026-07-06-graphify-integration.md) — wired graphify in as a deterministic-only navigation layer, auto-refreshed via the SessionStart hook
 
 ## learnings
+- [dedup-stage3-never-verified-with-real-embedder.md](learnings/dedup-stage3-never-verified-with-real-embedder.md) — the embedding stage of learnings-dedup was calibrated with mock vectors, never confirmed to fire against a real fastembed/MiniLM run
 - [pretooluse-guard-must-exempt-backgrounded-commands.md](learnings/pretooluse-guard-must-exempt-backgrounded-commands.md) — a routing hook denying heavy commands by shape must also exempt run_in_background calls; narrowing the regex doesn't generalize, execution-mode is the right axis
 - [compass-agent-portability-boundary.md](learnings/compass-agent-portability-boundary.md) — `.compass/`/`AGENTS.md`/`SPEC.md` are agent-agnostic and travel with the repo; skills/hooks/session-context tools are Claude-Code-specific and need manual translation
 - [hooks-require-session-restart.md](learnings/hooks-require-session-restart.md) — Claude Code loads hook config once at session start; changes need a new session, can't hot-swap
