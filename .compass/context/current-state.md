@@ -1,37 +1,35 @@
 # current state
 
 Date: 2026-07-10
-Commit: cfa70eb5db7d4c9073b725f111fedb1ad073c1e3
+Commit: df7f6eec5a05ad736774c883ba95612798efe02f
 
 ## Where things stand
-Compass is `main`, steady-state, maintenance-mode. The prior session's `compass init` CLI
-(decisions/0007) and tool-routing-guard fix are committed and confirmed live. This session was
-verification + presentation prep, not new development: confirmed the CLI actually works end-to-end,
-built diagrams explaining compass's workflow, and — under user pressure-testing — found one real,
-previously-unverified gap in the learnings-dedup embedder (see
-`learnings/dedup-stage3-never-verified-with-real-embedder.md`).
+Compass is `main`, steady-state, maintenance-mode. This session closed out the prior session's full
+backlog: graphify moved from default-installed+enforced to an opt-in add-on (decisions/0008, after a
+week of forced-routing enforcement still produced under 5 real uses), learnings-dedup stage 3 was
+verified end-to-end against the real `fastembed` model, the four stray backup symlinks under
+`~/.claude/` were deleted, and context-mode was confirmed working as a cross-agent MCP server in
+Cursor (in addition to Claude Code).
 
 ## Known issues / things to remember
-- **Stray backup artifacts in `~/.claude`** (global, not repo state): `skills/wrap-up.backup-20260704100310`,
-  `skills/init-compass.backup-20260704100310`, `skills/warm-up.backup-20260704100310`, and
-  `hooks/compass-session-start.sh.backup-20260704100310` are leftover symlinks from before
-  decisions/0006 switched install.sh to copying. Not referenced by `settings.json`, not a live risk,
-  but dead weight. **Delete these next session.**
-- **Learnings-dedup stage 3 has never fired for real** — calibrated only against mock embedder
-  vectors, never the real `fastembed`/MiniLM model. Worth an opportunistic real-world test (run
-  `check_similarity.py` with a genuine near-duplicate pair and confirm a real `POSSIBLE_DUPLICATE`
-  verdict) but not urgent — the design is sound even if unconfirmed, and dedup is a best-effort
-  filter, not a gate.
+- graphify is now opt-in only (`COMPASS_WITH_GRAPHIFY=1 ./install.sh`, or install it directly). The
+  `PreToolUse` routing guard no longer has a graphify-specific rule — broad searches always route to
+  `ctx_execute` now.
+- `install.sh`'s context-mode install command was fixed this session — it previously referenced a
+  nonexistent npm package (`@anthropic-ai/mcp-server-context-mode`, 404). Now installs the real
+  `context-mode` package and registers it via `claude mcp add context-mode -- context-mode`.
+- `~/.cursor/mcp.json` (global, on this machine) now registers `context-mode` for Cursor — confirmed
+  showing up as an MCP server there.
 - `install.sh` hard-requires `python3` (hook registration) and benefits from `uv`/`pipx`/`pip`
-  (compass CLI, graphify) and `node` (context-mode) — all three of the latter degrade to a warning,
-  never a hard failure.
+  (compass CLI) and `npm` (context-mode) — all degrade to a warning, never a hard failure. `node` is
+  no longer required for context-mode (fixed to use `npm install -g` instead of `npx`).
 - `graphify-out/` and `.compass/learnings/.embedding-cache.json` are gitignored/regenerable.
 - `.git/hooks/pre-commit` backstop (runs `compass-check.sh` check-only) is installed in this repo.
 
 ## Next steps
-1. **Commit this session's `AGENTS.md` change** (documents `session_status.py` for token questions).
-2. Delete the four stray `*.backup-20260704100310` files under `~/.claude/` (see above).
-3. Opportunistically verify learnings-dedup stage 3 against a real `fastembed` run, not proactively.
-4. Continue watching `compass init` behave well when agent-driven across ordinary sessions.
-5. From here on, compass stays maintenance-mode: fix real breakage as it's found, don't proactively
-   expand scope.
+1. Commit this session's changes (graphify opt-in, dedup verification, context-mode fix) — currently
+   staged, not yet committed.
+2. No other backlog items remain from prior sessions — this session closed all of them.
+3. Compass stays maintenance-mode: fix real breakage as it's found, don't proactively expand scope.
+   If graphify's usage picture changes on a future, larger repo, that's new evidence — don't
+   re-add it to compass's default path without it.

@@ -14,10 +14,11 @@ warm-up never writes. The goal: a cold session becomes useful in seconds without
 
 2. **Quick system health check.** Two cheap, deterministic checks, independent of the repo:
    - `claude mcp list 2>/dev/null | grep -q "context-mode.*Connected"` — is ctx (context-mode MCP) up?
-   - `command -v graphify >/dev/null` — is the graphify CLI installed?
-   Fold the result into a single status line (e.g. `System: ctx ✓ connected · graphify ✓ installed`)
-   in the final report. Don't investigate failures here — just note the status; if the user wants a
-   fix, that's a separate task.
+   - `command -v graphify >/dev/null` — is the graphify CLI installed? (optional, opt-in add-on — not
+     installed by default, so "not installed" is the expected state unless the user opted in)
+   Fold the result into a single status line (e.g. `System: ctx ✓ connected · graphify not installed
+   (optional)`) in the final report. Don't investigate failures here — just note the status; if the
+   user wants a fix, that's a separate task.
 
 3. **Read `INDEX.md` first.** It's the map. Use it to decide what else to load — do **not** load every
    file.

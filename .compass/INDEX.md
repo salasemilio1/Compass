@@ -4,7 +4,7 @@
 > repo so sessions start informed instead of cold, plus skills to load/save it (`warm-up`, `wrap-up`,
 > `init-compass`) and a `SessionStart` hook that nudges agents to use it.
 
-**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context, compass CLI), Markdown (skills, spec, template)   ·   **Mode:** committed, steady-state (main)   ·   **Updated:** 2026-07-10 (CLI verification + dedup embedder audit)
+**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context, compass CLI), Markdown (skills, spec, template)   ·   **Mode:** committed, steady-state (main)   ·   **Updated:** 2026-07-10 (graphify made opt-in, dedup stage 3 verified, context-mode confirmed in Cursor)
 
 ## Start here
 - New to the project? Read: [context/overview.md](context/overview.md), [SPEC.md](../SPEC.md)
@@ -23,13 +23,14 @@
 - _none yet_
 
 ## decisions
-- [0001-graphify-deterministic-only.md](decisions/0001-graphify-deterministic-only.md) — graphify wiring uses only its deterministic mode (no LLM/backend), for zero-cost always-fresh navigation
+- [SUPERSEDED by 0008] [0001-graphify-deterministic-only.md](decisions/0001-graphify-deterministic-only.md) — graphify wiring uses only its deterministic mode (no LLM/backend), for zero-cost always-fresh navigation
 - [SUPERSEDED by 0006] [0002-close-audited-gaps-with-deterministic-scripts.md](decisions/0002-close-audited-gaps-with-deterministic-scripts.md) — closed 5 audited bloat/staleness gaps with compass-check.sh + a 3-stage learnings-dedup filter; rejected Caveman/Headroom/semantic-tool-selection as the wrong layer
 - [0003-learnings-dedup-always-runs-stage3.md](decisions/0003-learnings-dedup-always-runs-stage3.md) — dropped the confidently-novel lexical short-circuit after real-content calibration found true paraphrases it silently missed
 - [0004-transcript-based-tool-efficiency-measurement.md](decisions/0004-transcript-based-tool-efficiency-measurement.md) — measure context-mode/graphify's real token savings by attributing per-turn token deltas to tool calls in the transcript, deterministic, no synthetic benchmark
-- [0005-deterministic-tool-routing-guard.md](decisions/0005-deterministic-tool-routing-guard.md) — PreToolUse hook that denies heavy/broad Bash calls toward ctx_execute/graphify by command shape, with a per-session retry safety valve so an unavailable alternate tool can't deadlock a session
+- [AMENDED by 0008] [0005-deterministic-tool-routing-guard.md](decisions/0005-deterministic-tool-routing-guard.md) — PreToolUse hook that denies heavy/broad Bash calls toward ctx_execute/graphify by command shape, with a per-session retry safety valve so an unavailable alternate tool can't deadlock a session
 - [0006-copy-not-symlink-global-install.md](decisions/0006-copy-not-symlink-global-install.md) — install.sh copies (not symlinks) skills/hooks so an ephemeral dotfiles clone can be deleted after install; drops the now-pointless $DOTFILES canonical-source guard and --dev flag (supersedes 0002)
 - [0007-compass-init-as-cli.md](decisions/0007-compass-init-as-cli.md) — init-compass's mechanical scaffolding moves to a real Click CLI (cli/), fixing the template-path bug by construction; warm-up/wrap-up stay markdown skills (judgment-heavy, weak fit for a CLI)
+- [0008-graphify-becomes-optional-add-on.md](decisions/0008-graphify-becomes-optional-add-on.md) — graphify moves from default-installed+enforced to opt-in only (`COMPASS_WITH_GRAPHIFY=1`); a week under decisions/0005's forced-routing guard produced under 5 real uses despite the tool working well when live-tested, so demand — not enforcement — was the gap; drops the guard's graphify rule, keeps deterministic-only mode if opted in
 
 ## experiments
 <!-- newest first; one line: model + headline result -->
@@ -37,6 +38,7 @@
 
 ## logs
 <!-- newest first -->
+- [2026-07-10-graphify-optional-and-cursor-ctx-mode.md](logs/2026-07-10-graphify-optional-and-cursor-ctx-mode.md) — graphify moved to opt-in (decisions/0008) after a week of enforced routing produced under 5 uses; learnings-dedup stage 3 verified against the real fastembed model; context-mode confirmed working in Cursor; fixed install.sh's broken context-mode package reference
 - [2026-07-10-presentation-prep-and-dedup-audit.md](logs/2026-07-10-presentation-prep-and-dedup-audit.md) — verified compass CLI end-to-end (no bugs), built presentation diagrams, found dedup stage 3 has never been verified against a real embedder, flagged stray backup symlinks in ~/.claude for cleanup
 - [2026-07-08-compass-init-cli.md](logs/2026-07-08-compass-init-cli.md) — extracted init-compass's mechanical scaffolding into a real `compass` CLI (cli/), bundled template via importlib.resources, wired into install.sh/CI/skill (decisions/0007)
 - [2026-07-08-tool-routing-guard-background-fix.md](logs/2026-07-08-tool-routing-guard-background-fix.md) — fixed tool-routing-guard.py denying backgrounded dev-server commands (npm run dev) by exempting run_in_background calls from all routing rules
@@ -51,7 +53,8 @@
 - [2026-07-06-graphify-integration.md](logs/2026-07-06-graphify-integration.md) — wired graphify in as a deterministic-only navigation layer, auto-refreshed via the SessionStart hook
 
 ## learnings
-- [dedup-stage3-never-verified-with-real-embedder.md](learnings/dedup-stage3-never-verified-with-real-embedder.md) — the embedding stage of learnings-dedup was calibrated with mock vectors, never confirmed to fire against a real fastembed/MiniLM run
+- [context-mode-package-name-was-wrong.md](learnings/context-mode-package-name-was-wrong.md) — install.sh/README documented a nonexistent npm package (`@anthropic-ai/mcp-server-context-mode`, 404); the real package is just `context-mode`
+- [dedup-stage3-never-verified-with-real-embedder.md](learnings/dedup-stage3-never-verified-with-real-embedder.md) — verified 2026-07-10: real fastembed/MiniLM run correctly scores a loose paraphrase at 0.59 (OK) and a tight paraphrase at 0.85 (POSSIBLE_DUPLICATE); model caches under $TMPDIR, not ~/.cache
 - [pretooluse-guard-must-exempt-backgrounded-commands.md](learnings/pretooluse-guard-must-exempt-backgrounded-commands.md) — a routing hook denying heavy commands by shape must also exempt run_in_background calls; narrowing the regex doesn't generalize, execution-mode is the right axis
 - [compass-agent-portability-boundary.md](learnings/compass-agent-portability-boundary.md) — `.compass/`/`AGENTS.md`/`SPEC.md` are agent-agnostic and travel with the repo; skills/hooks/session-context tools are Claude-Code-specific and need manual translation
 - [hooks-require-session-restart.md](learnings/hooks-require-session-restart.md) — Claude Code loads hook config once at session start; changes need a new session, can't hot-swap

@@ -1,23 +1,23 @@
-# dedup stage 3 has never been verified against a real embedder
+# dedup stage 3 verified against a real embedder (2026-07-10)
 
 decisions/0003's "calibration against real content" only exercised stages 1-2 (hash, lexical
-Jaccard) with real `.compass/learnings/*.md` text. Stage 3 (fastembed/MiniLM cosine similarity)
-was calibrated with hand-picked mock vectors standing in for "the ground-truth-correct embedder
-response" (e.g. `[0.1, 0.99]`) — never the real model's actual output. No log or test in the repo
-shows a `POSSIBLE_DUPLICATE`/`DUPLICATE ... embedding:` verdict produced by the real embedder.
+Jaccard) with real `.compass/learnings/*.md` text. Stage 3 (fastembed/MiniLM cosine similarity) was
+calibrated with hand-picked mock vectors — never the real model's actual output.
 
-The `fastembed` package is cached in `uv`'s wheel cache on this machine (confirms it was resolved
-at least once), but the MiniLM model weights it would download on first real run were not found
-under this user's cache directory — consistent with the model never having actually loaded.
+**Verified 2026-07-10**: ran `check_similarity.py` for real (via `uv run`, pulling the real
+`fastembed` dependency) against two hand-written paraphrases of
+`bash-pipefail-empty-substitution.md`, low enough lexical overlap to skip straight to stage 3:
+- A loose paraphrase (different structure, same idea) scored 0.59 cosine — correctly stayed `OK`,
+  below the 0.80 threshold.
+- A tight paraphrase (same structure, synonyms swapped) scored 0.85 cosine — correctly printed
+  `POSSIBLE_DUPLICATE bash-pipefail-empty-substitution.md embedding:0.85`.
 
-**Why it matters:** the design (three-stage cascade, model as last resort) is sound and the
-docs/tests read as if it's been validated end-to-end, but "validated with a mock" and "confirmed
-working" are different claims. Before trusting stage 3 to catch a real paraphrase in practice,
-someone needs to run `check_similarity.py` with the real `fastembed` dependency against a genuine
-near-duplicate pair and confirm it actually fires — not just that the mocked test asserts the
-intended behavior.
+Also resolved the earlier "model weights not found" observation: `fastembed`'s default cache is the
+OS temp dir (`$TMPDIR/fastembed_cache`, ~87MB for MiniLM), not `~/.cache` — the model had never
+failed to download, the wrong directory was checked. Stage 3 is confirmed working end-to-end, not
+just correct on paper.
 
-**How to apply:** when auditing any compass component described as "calibrated against real
-content," check whether every stage was calibrated that way, or whether some stage's tests
-substitute a mock for the expensive/slow part. A green test suite doesn't mean every code path in
-it has executed for real.
+**How to apply:** no further action needed on stage 3 itself. If auditing other compass components
+for "calibrated against real content," check whether *every* stage was, the way this one now has
+been — and remember `fastembed`'s cache lives in the OS temp dir, not `~/.cache`, when checking
+whether a model was actually downloaded.

@@ -35,35 +35,21 @@ _spec.loader.exec_module(g)
     "pgrep node",
 ])
 def test_classify_allows_cheap_commands(command):
-    assert g.classify(command, graph_exists=False) is None
-    assert g.classify(command, graph_exists=True) is None
+    assert g.classify(command) is None
 
 
-# --- classify: graphify-first (only when a graph exists) ----------------------------
-
-@pytest.mark.parametrize("command", [
-    "grep -rn 'functionName' src/",
-    "rg 'TODO'",
-    "find . -name '*.py'",
-])
-def test_classify_routes_broad_search_to_graphify_when_graph_exists(command):
-    rule_id, reason = g.classify(command, graph_exists=True)
-    assert rule_id == "graphify"
-    assert "graphify" in reason
-
+# --- classify: ctx-first (broad search and other heavy shapes) ----------------------
 
 @pytest.mark.parametrize("command", [
     "grep -rn 'functionName' src/",
     "rg 'TODO'",
     "find . -name '*.py'",
 ])
-def test_classify_routes_broad_search_to_ctx_without_graph(command):
-    rule_id, reason = g.classify(command, graph_exists=False)
+def test_classify_routes_broad_search_to_ctx(command):
+    rule_id, reason = g.classify(command)
     assert rule_id == "ctx"
     assert "ctx_execute" in reason
 
-
-# --- classify: ctx-first (heavy shapes regardless of graph) -------------------------
 
 @pytest.mark.parametrize("command", [
     "git diff HEAD~1",
@@ -75,7 +61,7 @@ def test_classify_routes_broad_search_to_ctx_without_graph(command):
     "make",
 ])
 def test_classify_routes_heavy_commands_to_ctx(command):
-    rule_id, _ = g.classify(command, graph_exists=False)
+    rule_id, _ = g.classify(command)
     assert rule_id == "ctx"
 
 

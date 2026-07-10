@@ -213,18 +213,22 @@ install_context_mode() {
     return 0
   fi
 
-  if ! command_exists node; then
-    log_warn "node not found — skipping context-mode install (optional)"
-    log_warn "to install later: claude mcp add context-mode npx @anthropic-ai/mcp-server-context-mode"
+  if ! command_exists npm; then
+    log_warn "npm not found — skipping context-mode install (optional)"
+    log_warn "to install later: npm install -g context-mode && claude mcp add context-mode -- context-mode"
     return 0
   fi
 
   log_info "installing context-mode MCP"
-  if claude mcp add context-mode npx @anthropic-ai/mcp-server-context-mode 2>/dev/null; then
+  if ! command_exists context-mode; then
+    npm install -g context-mode >/dev/null 2>&1
+  fi
+
+  if command_exists context-mode && claude mcp add context-mode -- context-mode 2>/dev/null; then
     log_success "context-mode MCP installed"
   else
     log_warn "context-mode install failed — run manually:"
-    log_warn "  claude mcp add context-mode npx @anthropic-ai/mcp-server-context-mode"
+    log_warn "  npm install -g context-mode && claude mcp add context-mode -- context-mode"
   fi
 }
 
@@ -309,9 +313,15 @@ main() {
   install_context_mode
   echo
 
-  log_info "graphify (optional navigation layer)"
-  install_graphify
-  echo
+  if [ "${COMPASS_WITH_GRAPHIFY:-0}" = "1" ]; then
+    log_info "graphify (optional navigation layer)"
+    install_graphify
+    echo
+  else
+    log_info "graphify (optional navigation layer) — skipped by default"
+    log_info "  opt in with: COMPASS_WITH_GRAPHIFY=1 ./install.sh"
+    echo
+  fi
 
   if [ "$INSTALL_FAILURES" -gt 0 ]; then
     log_error "$INSTALL_FAILURES install step(s) failed -- compass is not fully installed"
