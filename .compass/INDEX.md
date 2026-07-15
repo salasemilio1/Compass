@@ -4,7 +4,7 @@
 > repo so sessions start informed instead of cold, plus skills to load/save it (`warm-up`, `wrap-up`,
 > `init-compass`) and a `SessionStart` hook that nudges agents to use it.
 
-**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context, compass CLI), Markdown (skills, spec, template)   ·   **Mode:** committed, steady-state (main)   ·   **Updated:** 2026-07-10 (graphify made opt-in, dedup stage 3 verified, context-mode confirmed in Cursor)
+**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context, compass CLI), Markdown (skills, spec, template)   ·   **Mode:** committed, steady-state (main)   ·   **Updated:** 2026-07-15 (added `environment` category + repo-layout drift check, spec v2)
 
 ## Start here
 - New to the project? Read: [context/overview.md](context/overview.md), [SPEC.md](../SPEC.md)
@@ -19,6 +19,10 @@
 - [current-state.md](context/current-state.md) — compass init CLI verified working end-to-end; stray backup symlinks in ~/.claude flagged for deletion next session; dedup stage 3 flagged as never verified against a real embedder
 - [overview.md](context/overview.md) — what compass is, the three-layer model (compass/context-mode/graphify), repo layout
 
+## environment
+<!-- one file per machine/service, keyed by host; overwritten in place, not accumulated -->
+- _none yet_ — compass's own repo doesn't SSH anywhere; this category exists for repos scaffolded by compass that do
+
 ## architecture
 - _none yet_
 
@@ -31,6 +35,7 @@
 - [0006-copy-not-symlink-global-install.md](decisions/0006-copy-not-symlink-global-install.md) — install.sh copies (not symlinks) skills/hooks so an ephemeral dotfiles clone can be deleted after install; drops the now-pointless $DOTFILES canonical-source guard and --dev flag (supersedes 0002)
 - [0007-compass-init-as-cli.md](decisions/0007-compass-init-as-cli.md) — init-compass's mechanical scaffolding moves to a real Click CLI (cli/), fixing the template-path bug by construction; warm-up/wrap-up stay markdown skills (judgment-heavy, weak fit for a CLI)
 - [0008-graphify-becomes-optional-add-on.md](decisions/0008-graphify-becomes-optional-add-on.md) — graphify moves from default-installed+enforced to opt-in only (`COMPASS_WITH_GRAPHIFY=1`); a week under decisions/0005's forced-routing guard produced under 5 real uses despite the tool working well when live-tested, so demand — not enforcement — was the gap; drops the guard's graphify rule, keeps deterministic-only mode if opted in
+- [0009-environment-category-and-repo-layout-check.md](decisions/0009-environment-category-and-repo-layout-check.md) — adds an `environment/` category (one file per machine/service, keyed by host, overwritten in place) for SSH access/ports/version quirks that had no home; adds a warn-only `compass-check.sh` check that a repo's top-level dirs are mentioned in `context/overview.md`; spec version 1 → 2
 
 ## experiments
 <!-- newest first; one line: model + headline result -->
@@ -38,6 +43,7 @@
 
 ## logs
 <!-- newest first -->
+- [2026-07-15-environment-category-and-layout-check.md](logs/2026-07-15-environment-category-and-layout-check.md) — added `environment/` category + `compass-check.sh` repo-layout drift check (decisions/0009); fixed this repo's own stale `context/overview.md`; spec v2
 - [2026-07-10-graphify-optional-and-cursor-ctx-mode.md](logs/2026-07-10-graphify-optional-and-cursor-ctx-mode.md) — graphify moved to opt-in (decisions/0008) after a week of enforced routing produced under 5 uses; learnings-dedup stage 3 verified against the real fastembed model; context-mode confirmed working in Cursor; fixed install.sh's broken context-mode package reference
 - [2026-07-10-presentation-prep-and-dedup-audit.md](logs/2026-07-10-presentation-prep-and-dedup-audit.md) — verified compass CLI end-to-end (no bugs), built presentation diagrams, found dedup stage 3 has never been verified against a real embedder, flagged stray backup symlinks in ~/.claude for cleanup
 - [2026-07-08-compass-init-cli.md](logs/2026-07-08-compass-init-cli.md) — extracted init-compass's mechanical scaffolding into a real `compass` CLI (cli/), bundled template via importlib.resources, wired into install.sh/CI/skill (decisions/0007)
@@ -76,6 +82,7 @@
 | Folder | Holds | Naming |
 |---|---|---|
 | `context/` | Domain facts, goals, constraints, glossary. `current-state.md` tracks where you left off. | `slug.md` |
+| `environment/` | Machine/service specifics: SSH access, non-default ports/paths, pinned versions, quirks. One file per host, overwritten in place. | `host-slug.md` |
 | `architecture/` | Components, data flow, module boundaries. Start with `overview.md`. | `slug.md` |
 | `decisions/` | ADRs: what was decided, alternatives, consequences. | `NNNN-slug.md` |
 | `experiments/` | One file per ML run: config, results, observations, failures. | `YYYY-MM-DD-slug.md` |

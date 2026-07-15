@@ -12,11 +12,20 @@ from pathlib import Path
 
 import click
 
-CATEGORIES = ["context", "architecture", "decisions", "experiments", "logs", "learnings", "scratch"]
+CATEGORIES = [
+    "context",
+    "environment",
+    "architecture",
+    "decisions",
+    "experiments",
+    "logs",
+    "learnings",
+    "scratch",
+]
 
 # Keep in sync with SPEC.md's "Spec version:" line -- stamped into AGENTS.md so
 # scripts/compass-check.sh can warn when a scaffolded repo drifts behind the spec.
-SPEC_VERSION = 1
+SPEC_VERSION = 2
 
 MODE_LINE = "<languages/frameworks>   ·   **Mode:** committed | branch-local   ·   **Updated:** <YYYY-MM-DD>"
 

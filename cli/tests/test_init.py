@@ -1,6 +1,6 @@
 from click.testing import CliRunner
 
-from compass_cli.commands.init import CATEGORIES, _write_agents_md
+from compass_cli.commands.init import CATEGORIES, SPEC_VERSION, _write_agents_md
 from compass_cli.main import cli
 
 
@@ -55,7 +55,7 @@ def test_init_appends_to_existing_gitignore_without_duplicating(tmp_path):
 def test_init_creates_agents_md_with_spec_version(tmp_path):
     run_init(tmp_path)
     agents = (tmp_path / "AGENTS.md").read_text()
-    assert "compass-spec-version: 1" in agents
+    assert f"compass-spec-version: {SPEC_VERSION}" in agents
 
 
 def test_init_appends_to_existing_agents_md(tmp_path):

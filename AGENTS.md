@@ -1,4 +1,4 @@
-<!-- compass-spec-version: 1 -->
+<!-- compass-spec-version: 2 -->
 # Agent instructions
 
 This repo uses the compass protocol for agent memory. Before substantial work:

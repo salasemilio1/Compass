@@ -1,6 +1,6 @@
 # compass — protocol specification
 
-**Spec version:** 1 — bump this when a convention below changes, so `scripts/compass-check.sh` can
+**Spec version:** 2 — bump this when a convention below changes, so `scripts/compass-check.sh` can
 detect a repo's `AGENTS.md` drifting behind the spec it was scaffolded from.
 
 `compass` is the in-repo agent-memory protocol. A repo "has a compass" when it contains a `.compass/`
@@ -18,6 +18,7 @@ CLI's `init` command copies into a target repo (see `/init-compass`, which wraps
 .compass/
   INDEX.md          # the retrieval map — read FIRST during warm-up (kept small)
   context/          # domain / client / project context
+  environment/      # machine/service specifics: access, non-default ports/paths/versions, quirks
   architecture/     # how the system is built: components, data flow, boundaries
   decisions/        # ADRs — why a choice was made, alternatives, consequences
   experiments/      # ML runs: hyperparameters, configs, results, observations, failures
@@ -41,6 +42,7 @@ writes `graphify-out/` — it's read-only reference material an agent may consul
 | Category | Holds | Answers |
 | --- | --- | --- |
 | `context` | Domain, client, and project facts; glossary; goals; constraints; **`current-state.md`** (resumable status + next steps for in-progress work) | "What is this project and why does it exist? Where are we and what's next?" |
+| `environment` | One file per machine/service: how to reach it (SSH alias/host/user/jump-host), anything non-default (ports, paths, pinned versions and why), quirks specific to that box. Living doc — overwritten in place, not appended | "How do I get onto this box, and what's different about it from a normal setup?" |
 | `architecture` | Components, data flow, module boundaries, key interfaces | "How is it built and where does X live?" |
 | `decisions` | ADRs: decision, alternatives considered, consequences | "Why was it done this way?" |
 | `experiments` | One file per run/sweep: config + results + what we learned | "What learning rate did we settle on for the BERT Mini run?" |
@@ -65,7 +67,7 @@ I choose to share). The split is by category, with explicit promotion.
 | Category | Default visibility | Notes |
 | --- | --- | --- |
 | `context`, `architecture`, `decisions` | **Shared** — committed, reaches `main` | Legible to teammates' agents by design |
-| `experiments`, `logs`, `learnings` | **Private-first**, promotable | Mine until promoted; useful to share when they help the team |
+| `experiments`, `logs`, `learnings`, `environment` | **Private-first**, promotable | Mine until promoted; useful to share when they help the team. `environment` often names hosts/usernames — treat promotion deliberately |
 | `scratch` | **Private** — gitignored | Never committed |
 
 **Promotion** moves a private-first entry into the shared set (and onto `main`). This is the
@@ -106,6 +108,9 @@ Required structure:
 ## context
 - [overview.md](context/overview.md) — <one line>
 
+## environment
+- [<machine-slug>.md](environment/<machine-slug>.md) — <one line: what/where this box is>
+
 ## architecture
 - [overview.md](architecture/overview.md) — <one line>
 
@@ -139,6 +144,9 @@ Rules:
 
 - **Filenames:** `kebab-case`. Dated entries (`experiments`, `logs`) are prefixed `YYYY-MM-DD-`. ADRs
   are numbered `NNNN-slug.md`.
+- **`environment/` files are keyed by machine/service, not by date or topic** — one file per host,
+  named after the host/alias (e.g. `gpu-box-3.md`), overwritten in place as facts change (like
+  `context/current-state.md`), never accumulated as multiple files about the same box.
 - **Every entry** opens with a one-line summary and a `Date:` line so it's self-describing out of context.
 - **Concise over complete.** These are retrieval aids, not transcripts. If an entry grows long, it's
   probably two entries.
@@ -156,11 +164,17 @@ Rules:
 
 ## 6. Lifecycle (how entries get created)
 
-- `warm-up` — reads `INDEX.md`, `context/current-state.md`, + relevant slices to prime a session. Read-only.
+- `warm-up` — reads `INDEX.md`, `context/current-state.md`, + relevant slices to prime a session. Also
+  loads the matching `environment/<host>.md` when the task names a remote machine/service. Read-only.
 - `wrap-up` — at task end, drafts a `logs/` entry (+ any ADRs, + `INDEX.md` update), I review, commit.
-  Also runs `scripts/compass-check.sh --fix` (archives overflow, stamps `Commit:`) and, before writing a
-  new `learnings/` entry, `tools/learning-dedup/check_similarity.py` (see dedup note above) — both
-  deterministic steps, not judgment calls left to the skill.
+  Also asks separately whether anything about the *environment itself* (access, ports, paths, pinned
+  versions) surprised me this session, and if so writes/updates `environment/<host>.md` in place rather
+  than adding a `learnings/` entry. Runs `scripts/compass-check.sh --fix` (archives overflow, stamps
+  `Commit:`) and, before writing a new `learnings/` or `environment/` entry,
+  `tools/learning-dedup/check_similarity.py` (see dedup note above) — both deterministic steps, not
+  judgment calls left to the skill. A near-duplicate hit against an existing `environment/*.md` is a
+  signal the same quirk almost got missed twice — worth calling out explicitly, not just silently
+  merged.
 - `new-experiment` — scaffolds an `experiments/` entry from a run's config/results.
 - `promote` — moves a private-first entry into the shared set.
 

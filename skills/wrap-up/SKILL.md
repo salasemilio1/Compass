@@ -41,11 +41,15 @@ Never write `.compass/` silently.
      consequences. If this decision replaces an earlier ADR, add a `Supersedes: NNNN` line under
      `Date:` (see `compass/SPEC.md` §5) — `compass-check.sh` (step 4a) marks the old one automatically.
    - **`learnings/slug.md`** — durable gotchas worth never repeating.
+   - **`environment/<host>.md`** — ask this **separately** from learnings: did anything about the
+     *environment itself* (not the code) surprise you — SSH access, a non-default port/path, a version
+     that had to be pinned differently than usual? If so, write or update the file for that host/service
+     in place (living doc, like `current-state.md` — don't create a second file for the same box).
    - **`context/current-state.md`** — **for in-progress projects**: where the work stands, what's in
      flight, known issues, and concrete next steps. Living doc — overwrite, don't append. Don't hand-write
      the `Commit:` line — `compass-check.sh --fix` (step 4a) stamps it.
 
-4. **Before finalizing a new `learnings/` entry, run the dedup check** (guarded by
+4. **Before finalizing a new `learnings/` or `environment/` entry, run the dedup check** (guarded by
    `command -v uv`):
    ```
    uv run tools/learning-dedup/check_similarity.py .compass "<the drafted learning's text>"
@@ -54,12 +58,16 @@ Never write `.compass/` silently.
    `learnings/X.md` (score) — update that instead of a new file?") instead of silently adding a
    duplicate. `UNAVAILABLE: <reason>` (missing dependency, offline, etc.) → show the reason to the user
    once and proceed normally; this check is a best-effort gentle filter, never a gate.
+   For `environment/`, a near-duplicate hit against the *same host's* existing file isn't a dedup case —
+   it means an existing quirk almost got silently re-discovered. Say so plainly instead of just merging
+   the text: that's the "don't repeat the same mistake twice" signal actually firing.
 
 5. **Update `INDEX.md`** — add a one-line row for each new entry (newest first for `logs`/`experiments`),
    refresh the `Updated:` date, update `Start here` pointers if they changed.
 
 6. **Respect visibility** (see `compass/SPEC.md`): `context`/`architecture`/`decisions` are shared;
-   `experiments`/`logs`/`learnings` are private-first; `scratch` is gitignored.
+   `experiments`/`logs`/`learnings`/`environment` are private-first; `scratch` is gitignored.
+   `environment/` often names real hosts/usernames — treat promotion to shared deliberately.
 
 7. **Summarize, don't dump — then ask everything at once.** Wrap-up usually runs when the user is
    already low on context or ready to end the session; don't drag that out. Do not paste full file

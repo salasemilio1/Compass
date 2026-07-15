@@ -8,10 +8,16 @@ from conversation history, so sessions can be disposable.
 
 ## Repo layout
 - `SPEC.md` — the protocol contract (categories, INDEX.md format, lifecycle, sharing model)
-- `template/` — the `.compass/` scaffold `init-compass` copies into a target repo
+- `cli/` — the `compass` CLI; `compass init` scaffolds `.compass/` into a target repo from the bundled
+  `cli/compass_cli/template/`, tests in `cli/tests/`
 - `skills/{warm-up,wrap-up,init-compass}/SKILL.md` — the three slash commands
+- `scripts/compass-check.sh` — deterministic checker/fixer for a `.compass/` (INDEX archival, ADR
+  supersession, `current-state.md` Commit: stamp, spec-version drift, repo-layout drift — all warn/fix,
+  never inference)
+- `tools/learning-dedup/` — similarity check run before writing a new `learnings/`/`environment/` entry
 - `hooks/compass-session-start.sh` — SessionStart hook, nudges agents to warm up when `.compass/` exists
-- `install.sh` — symlinks skills/hook into `~/.claude/`, idempotent, optionally installs context-mode
+- `tests/` — test suite for `scripts/compass-check.sh` and the hooks
+- `install.sh` — copies skills/hooks into `~/.claude/`, idempotent, optionally installs context-mode
   and graphify
 
 ## Three-layer model (on the `graphify-integration` branch, unmerged as of 2026-07-06)

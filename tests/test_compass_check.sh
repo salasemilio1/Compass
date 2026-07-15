@@ -150,7 +150,8 @@ echo "-- D: current-state.md Commit: anchor"
 echo "-- E: AGENTS.md spec-version (warn-only)"
 {
   d="$(new_fixture)"
-  printf '<!-- compass-spec-version: 1 -->\n' > "$d/AGENTS.md"
+  current_version="$(grep -oE '\*\*Spec version:\*\* [0-9]+' "$REPO_ROOT/SPEC.md" | grep -oE '[0-9]+$')"
+  printf '<!-- compass-spec-version: %s -->\n' "$current_version" > "$d/AGENTS.md"
   out="$("$CHECK" --repo-root "$d" .compass 2>&1)"
   assert_exit_code 0 "matching spec version: still exits 0" "$CHECK" --repo-root "$d" .compass
   if echo "$out" | grep -q 'spec version'; then
@@ -166,6 +167,37 @@ echo "-- E: AGENTS.md spec-version (warn-only)"
   out="$("$CHECK" --repo-root "$d" .compass 2>&1)"
   assert_exit_code 0 "mismatched spec version: still exits 0 (never blocks)" "$CHECK" --repo-root "$d" .compass
   assert_file_contains <(echo "$out") "spec version" "mismatched spec version: prints a warning"
+  rm -rf "$d"
+}
+
+echo "-- F: context/overview.md repo-layout drift (warn-only)"
+{
+  d="$(new_fixture)"
+  mkdir -p "$d/scripts" "$d/tools"
+  echo "placeholder" > "$d/scripts/thing.sh"
+  echo "placeholder" > "$d/tools/thing.py"
+  ( cd "$d" && git add -A && git commit -q -m "add scripts and tools dirs" )
+  # no context/overview.md at all: check must not warn or fail
+  out="$("$CHECK" --repo-root "$d" .compass 2>&1)"
+  assert_exit_code 0 "no overview.md: still exits 0" "$CHECK" --repo-root "$d" .compass
+  if echo "$out" | grep -q "repo layout"; then
+    TESTS_RUN=$((TESTS_RUN + 1)); TESTS_FAILED=$((TESTS_FAILED + 1))
+    echo "  FAIL: no overview.md should not warn about repo layout"
+  else
+    TESTS_RUN=$((TESTS_RUN + 1)); echo "  ok: no overview.md does not warn"
+  fi
+
+  printf '# overview\n\nRepo layout:\n- `scripts/` -- does things\n' > "$d/.compass/context/overview.md"
+  ( cd "$d" && git add -A && git commit -q -m "add stale overview.md" )
+  out="$("$CHECK" --repo-root "$d" .compass 2>&1)"
+  assert_exit_code 0 "stale overview.md: still exits 0 (never blocks)" "$CHECK" --repo-root "$d" .compass
+  assert_file_contains <(echo "$out") "repo layout.*tools" "stale overview.md: warns about the unmentioned dir"
+  if echo "$out" | grep "repo layout" | grep -q "scripts"; then
+    TESTS_RUN=$((TESTS_RUN + 1)); TESTS_FAILED=$((TESTS_FAILED + 1))
+    echo "  FAIL: overview.md already mentions scripts/, should not be listed as missing"
+  else
+    TESTS_RUN=$((TESTS_RUN + 1)); echo "  ok: already-mentioned dir is not flagged"
+  fi
   rm -rf "$d"
 }
 

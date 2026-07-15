@@ -12,6 +12,10 @@
 <!-- one line per entry; this is a retrieval hint, not a summary -->
 - _none yet_
 
+## environment
+<!-- one file per machine/service, keyed by host; overwritten in place, not accumulated -->
+- _none yet_
+
 ## architecture
 - _none yet_
 
@@ -36,6 +40,7 @@
 | Folder | Holds | Naming |
 |---|---|---|
 | `context/` | Domain facts, goals, constraints, glossary. `current-state.md` tracks where you left off. | `slug.md` |
+| `environment/` | Machine/service specifics: SSH access, non-default ports/paths, pinned versions, quirks. One file per host, overwritten in place. | `host-slug.md` |
 | `architecture/` | Components, data flow, module boundaries. Start with `overview.md`. | `slug.md` |
 | `decisions/` | ADRs: what was decided, alternatives, consequences. | `NNNN-slug.md` |
 | `experiments/` | One file per ML run: config, results, observations, failures. | `YYYY-MM-DD-slug.md` |

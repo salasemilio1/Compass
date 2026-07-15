@@ -2,8 +2,9 @@
 # Deterministic checker+fixer for a .compass/ directory.
 #
 # Closes gaps A (INDEX.md archival), B1 (ADR supersession), D (current-state.md
-# Commit: anchor) fully; E (AGENTS.md spec-version drift) is detection-only and
-# never blocks — its remediation is a manual content edit.
+# Commit: anchor) fully; E (AGENTS.md spec-version drift) and F (context/overview.md
+# repo-layout drift) are detection-only and never block — their remediation is a
+# manual content edit.
 #
 # Modes:
 #   compass-check.sh [--repo-root DIR] [.compass path]        check-only, exits 1 on a real violation
@@ -246,6 +247,27 @@ check_spec_version() {
   return 0
 }
 
+# --- F: repo-layout drift in context/overview.md (warn-only, never blocks) -----
+
+check_repo_layout() {
+  local compass_dir="$1" repo_root="$2" overview="$compass_dir/context/overview.md"
+  [ -f "$overview" ] || return 0
+  git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+
+  local missing=() d
+  while read -r d; do
+    [ -z "$d" ] && continue
+    case "$d" in .*) continue ;; esac
+    [ "$d" = "$(basename "$compass_dir")" ] && continue
+    grep -qF "\`$d/" "$overview" || missing+=("$d")
+  done < <(git -C "$repo_root" ls-files | awk -F/ 'NF>1 {print $1}' | sort -u)
+
+  if [ "${#missing[@]}" -gt 0 ]; then
+    log_warn "context/overview.md: repo layout doesn't mention: ${missing[*]} (informational only)"
+  fi
+  return 0
+}
+
 # --- main -----------------------------------------------------------------------
 
 main() {
@@ -286,6 +308,7 @@ main() {
   fi
 
   check_spec_version "$repo_root"
+  check_repo_layout "$compass_dir" "$repo_root"
 
   exit $exit_code
 }

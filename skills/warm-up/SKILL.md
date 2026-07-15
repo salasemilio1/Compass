@@ -36,6 +36,10 @@ warm-up never writes. The goal: a cold session becomes useful in seconds without
 5. **Load task-relevant slices only.** Infer from the user's first request, then pull the matching
    entries: relevant `decisions/`, recent `logs/`, and any `experiments/` that bear on the task.
    Skip the rest — loading everything defeats the purpose.
+   - If the task names or implies a remote machine/service (SSH, a training box, a specific host), check
+     `environment/` for a matching `<host>.md` **before** attempting the connection or command — that
+     file is where non-default ports, paths, pinned versions, and access quirks for that box live. Load
+     it even if nothing else in this step matched.
 
 6. **Check for a graphify graph.** If `graphify-out/graph.json` exists, it's an auto-generated structural
    map (what calls what, where things live). Prefer `graphify query "<question>"` over grepping/reading
