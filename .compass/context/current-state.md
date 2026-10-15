@@ -27,6 +27,11 @@ pre-decisions/0007 `template/` path) — which was the actual reason agents coul
 - `.git/hooks/pre-commit` backstop (runs `compass-check.sh` check-only) is installed in this repo.
 
 ## Next steps
+0. **(2026-10-15) Compass leaves maintenance mode for v3.** The first long-running project
+   (ebay-flipper) found v2's limits: read [2026-10-15-ebay-flipper-retro.md](2026-10-15-ebay-flipper-retro.md)
+   then [v3-direction.md](v3-direction.md). Start with portability (every deterministic tool as a
+   `compass` subcommand, since `compass-check.sh` and dedup never shipped), then the retrieval eval
+   that picks between the index options. Usage data: `tools/usage-retro/retro.py --repo <path>`.
 1. Commit this session's changes (environment category, repo-layout check, spec v2, overview.md fix)
    — currently staged, not yet committed.
 2. No other backlog items remain from prior sessions — this session closed the two gaps it found.

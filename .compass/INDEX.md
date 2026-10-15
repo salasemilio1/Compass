@@ -18,6 +18,8 @@
 <!-- one line per entry; this is a retrieval hint, not a summary -->
 - [current-state.md](context/current-state.md) — compass init CLI verified working end-to-end; stray backup symlinks in ~/.claude flagged for deletion next session; dedup stage 3 flagged as never verified against a real embedder
 - [overview.md](context/overview.md) — what compass is, the three-layer model (compass/context-mode/graphify), repo layout
+- [v3-direction.md](context/v3-direction.md) — open: one-CLI portability (guards never shipped), capped generated index, retrieval options (frontmatter, SQLite FTS5, embeddings, MCP), chosen by a retrieval eval
+- [2026-10-15-ebay-flipper-retro.md](context/2026-10-15-ebay-flipper-retro.md) — first long-run field data: 90% of cost in main sessions, 78% above 300k context; 103 KB INDEX; logs/learnings mostly never re-read; model-by-task grades
 
 ## environment
 <!-- one file per machine/service, keyed by host; overwritten in place, not accumulated -->
