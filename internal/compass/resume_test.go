@@ -125,6 +125,13 @@ func TestInitScaffoldsAndIsIdempotent(t *testing.T) {
 	if strings.Contains(agents, "EDITED") || !strings.HasSuffix(agents, "\ntrailer\n") || strings.Count(agents, agentsBegin) != 1 {
 		t.Errorf("block not refreshed in place:\n%s", agents)
 	}
+	f.write(".git/hooks/pre-commit", "#!/bin/sh\n# Installed by `compass init`: an older version\n")
+	if _, err := Init(f.repo.Root, InitOptions{Today: today}); err != nil {
+		t.Fatal(err)
+	}
+	if f.read(".git/hooks/pre-commit") != gitPreCommit {
+		t.Error("compass's own older git hook was not refreshed")
+	}
 	if strings.Count(f.read(".gitignore"), ".compass/scratch/") != 1 {
 		t.Error(".gitignore line duplicated")
 	}

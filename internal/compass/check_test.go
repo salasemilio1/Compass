@@ -113,7 +113,17 @@ func TestCheckFixStampsOnlyAMissingAnchor(t *testing.T) {
 		t.Errorf("stamped:\n%s", got)
 	}
 
-	// A stale anchor is not restamped: that would claim current-state was rewritten.
+	// An invented hash, which names no commit, is restamped.
+	f.write(".compass/context/current-state.md", "Date: 2026-10-21\nCommit: caf5e589e5f8a3c8a47b8e8e8e8e8e8e8e8e8e8\n")
+	if _, err := Fix(f.repo); err != nil {
+		t.Fatal(err)
+	}
+	if got := f.read(".compass/context/current-state.md"); got != "Date: 2026-10-21\nCommit: "+head+"\n" {
+		t.Errorf("invented hash not restamped: %q", got)
+	}
+	f.write(".compass/context/current-state.md", "# current state\n\nDate: 2026-10-21\nCommit: "+head+"\n\n## Next\n")
+
+	// A real but stale anchor is not restamped: that would claim current-state was rewritten.
 	f.commit("state")
 	f.write("code.go", "package x\n")
 	f.commit("code")

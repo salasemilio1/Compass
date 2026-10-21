@@ -137,10 +137,16 @@ func installGitHook(repo *Repo) (string, error) {
 		path = filepath.Join(repo.Root, path)
 	}
 	if data, err := os.ReadFile(path); err == nil {
-		if strings.Contains(string(data), "compass hook pre-commit") {
+		switch {
+		case string(data) == gitPreCommit:
 			return "git pre-commit hook already runs compass", nil
+		case !strings.HasPrefix(string(data), "#!/bin/sh\n# Installed by `compass init`"):
+			if strings.Contains(string(data), "compass hook pre-commit") {
+				return "git pre-commit hook already runs compass", nil
+			}
+			return "skipped git pre-commit hook: one exists; add `compass hook pre-commit` to it", nil
 		}
-		return "skipped git pre-commit hook: one exists; add `compass hook pre-commit` to it", nil
+		// compass's own hook from an older version: refresh it below.
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", err

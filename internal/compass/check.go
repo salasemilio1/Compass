@@ -239,7 +239,8 @@ func checkCurrentState(repo *Repo, options CheckOptions, git bool) []Finding {
 	freshness := repo.Freshness(state)
 	if !freshness.AnchorResolves {
 		findings = append(findings, Finding{Severity: SeverityWarn, Code: "anchor-unresolved", Path: path,
-			Message: fmt.Sprintf("Commit: %s is not in this repository's history (squash merge or rebase?); freshness is measured from the last commit that changed current-state.md", state.Anchor)})
+			Message: fmt.Sprintf("Commit: %s is not in HEAD's history (squash merge or rebase, or an invented hash: set it to `git rev-parse HEAD`); freshness is measured from the last commit that changed current-state.md", state.Anchor),
+			Fixable: !repo.CommitExists(state.Anchor)})
 	}
 	if freshness.Known && freshness.CodeCommits > 0 {
 		severity := SeverityWarn
@@ -290,8 +291,9 @@ func short(hash string) string {
 	return hash
 }
 
-// Fix repairs what is mechanical: it regenerates INDEX.md and stamps a missing or malformed
-// anchor with HEAD. It never stamps a stale anchor: that would claim current-state was rewritten.
+// Fix repairs what is mechanical: it regenerates INDEX.md and stamps HEAD into an anchor that is
+// missing, malformed, or names no commit at all (agents have been seen inventing hashes). It never
+// restamps a real but stale anchor: that would claim current-state was rewritten.
 // It returns one line per change made.
 func Fix(repo *Repo) ([]string, error) {
 	var changes []string
@@ -306,7 +308,7 @@ func Fix(repo *Repo) ([]string, error) {
 	if err != nil || state == nil {
 		return changes, err
 	}
-	if state.HasAnchor && state.AnchorWellFormed() {
+	if state.HasAnchor && state.AnchorWellFormed() && (!repo.IsGit() || repo.CommitExists(state.Anchor)) {
 		return changes, nil
 	}
 	head := repo.Head()
