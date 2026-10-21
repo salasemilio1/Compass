@@ -1,3 +1,6 @@
+---
+claim: "first long-run field data: 90% of cost in main sessions, 78% above 300k context; 103 KB INDEX; logs/learnings mostly never re-read; model-by-task grades"
+---
 # Field retro: compass and the work loop on ebay-flipper (2026-07 to 2026-10)
 
 Date: 2026-10-15

@@ -1,3 +1,6 @@
+---
+claim: "adds an `environment/` category (one file per machine/service, keyed by host, overwritten in place) for SSH access/ports/version quirks that had no home; adds a warn-only `compass-check.sh` check…"
+---
 # 0009 — add an `environment` category; check `context/overview.md` for repo-layout drift
 
 Date: 2026-07-15

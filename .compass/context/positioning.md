@@ -1,3 +1,6 @@
+---
+claim: "v3 goal (disposable sessions, cross-agent resume), staleness rule (nothing maintained in place, expiry by event), and the core: check/index/record/resume + AGENTS.md block + hooks"
+---
 # Compass v3: positioning and core
 
 Date: 2026-10-21

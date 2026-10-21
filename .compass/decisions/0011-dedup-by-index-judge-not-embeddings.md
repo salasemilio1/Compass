@@ -1,3 +1,6 @@
+---
+claim: "drop MiniLM embeddings (0.30 recall, 230 MB); dedup = cheap LLM judge over INDEX one-line hooks (P 0.96 / R 0.99, $0.017); merges append, never delete; no bulk consolidation (supersedes 0003)"
+---
 # 0011 — dedup learnings with a cheap LLM judge over the index; drop embeddings
 
 Date: 2026-10-21

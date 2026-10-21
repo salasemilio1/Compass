@@ -1,3 +1,6 @@
+---
+claim: "portability (§1) still holds; retrieval B–E deferred, hygiene replaced, session economics moved out"
+---
 # Compass v3: direction and open options
 
 Date: 2026-10-15

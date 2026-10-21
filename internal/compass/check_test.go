@@ -12,7 +12,8 @@ func TestCheckPassesACleanProject(t *testing.T) {
 	f.write("src/main.go", "package main\n")
 	head := f.commit("code")
 	f.state(head, "src/main.go")
-	f.record("decisions/0001-go.md", "claim: use Go\nrefs:\n  - commit:"+head[:7]+"\n  - src/main.go\n  - https://example.com/x")
+	f.record("goals/2026-01-01-ship.md", "claim: ship")
+	f.record("decisions/0001-go.md", "claim: use Go\nrefs:\n  - commit:"+head[:7]+"\n  - src/main.go\n  - https://example.com/x\n  - goals/2026-01-01-ship.md\n  - ../goals/2026-01-01-ship.md")
 	f.clean()
 	f.commit("state")
 	if findings := f.check(CheckOptions{RequireFresh: true}); len(findings) != 0 {

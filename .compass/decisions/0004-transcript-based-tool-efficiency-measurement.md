@@ -1,3 +1,6 @@
+---
+claim: "measure context-mode/graphify's real token savings by attributing per-turn token deltas to tool calls in the transcript, deterministic, no synthetic benchmark"
+---
 # 0004 — measure context-mode/graphify efficiency by attributing token deltas to tool calls in the transcript
 
 Date: 2026-07-07

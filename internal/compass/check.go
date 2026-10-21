@@ -164,6 +164,7 @@ func checkRef(repo *Repo, doc *Doc, ref string, git bool) string {
 	path, _, _ := strings.Cut(ref, "#")
 	candidates := []string{
 		filepath.Join(repo.Root, filepath.FromSlash(path)),
+		filepath.Join(repo.Dir, filepath.FromSlash(path)),
 		filepath.Join(repo.Dir, filepath.FromSlash(filepath.Dir(doc.Path)), filepath.FromSlash(path)),
 	}
 	for _, candidate := range candidates {
@@ -171,7 +172,7 @@ func checkRef(repo *Repo, doc *Doc, ref string, git bool) string {
 			return ""
 		}
 	}
-	return fmt.Sprintf("ref %q: no such path (relative to the repo root or to this record)", ref)
+	return fmt.Sprintf("ref %q: no such path (relative to the repo root, .compass/, or this record)", ref)
 }
 
 func checkSupersessionCycles(docs []*Doc) []Finding {

@@ -1,3 +1,6 @@
+---
+claim: "compass becomes one Go binary (CLI + hook handler + MCP server over one core) shipped as a Claude Code plugin with committed mac/linux binaries; spike-verified install, hooks, MCP, subagent delivery…"
+---
 # 0010 — compass becomes one Go binary, shipped as a Claude Code plugin
 
 Date: 2026-10-21

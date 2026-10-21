@@ -1,3 +1,6 @@
+---
+claim: "PreToolUse hook that denies heavy/broad Bash calls toward ctx_execute/graphify by command shape, with a per-session retry safety valve so an unavailable alternate tool can't deadlock a session"
+---
 # 0005 — deterministic PreToolUse guard for Bash-vs-ctx/graphify routing
 
 Date: 2026-07-08

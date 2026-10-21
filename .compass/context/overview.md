@@ -1,3 +1,6 @@
+---
+claim: "what compass is, the three-layer model (compass/context-mode/graphify), repo layout"
+---
 # overview
 
 Date: 2026-07-04

@@ -1,3 +1,6 @@
+---
+claim: "install.sh copies (not symlinks) skills/hooks so an ephemeral dotfiles clone can be deleted after install; drops the now-pointless $DOTFILES canonical-source guard and --dev flag (supersedes 0002)"
+---
 # 0006 -- install.sh copies skills/hooks instead of symlinking; drop the $DOTFILES canonical-source guard
 
 Date: 2026-07-08

@@ -1,3 +1,6 @@
+---
+claim: "dropped the confidently-novel lexical short-circuit after real-content calibration found true paraphrases it silently missed"
+---
 # 0003 — learnings dedup always runs stage 3, dropping the confidently-novel lexical short-circuit
 
 Date: 2026-07-06

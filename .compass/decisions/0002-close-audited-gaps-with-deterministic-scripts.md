@@ -1,3 +1,6 @@
+---
+claim: "closed 5 audited bloat/staleness gaps with compass-check.sh + a 3-stage learnings-dedup filter; rejected Caveman/Headroom/semantic-tool-selection as the wrong layer"
+---
 # 0002 -- close audited compass gaps with deterministic scripts, not prompts
 
 Date: 2026-07-06

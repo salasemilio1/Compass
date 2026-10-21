@@ -1,3 +1,6 @@
+---
+claim: "graphify wiring uses only its deterministic mode (no LLM/backend), for zero-cost always-fresh navigation"
+---
 # 0001 — use graphify's deterministic mode only, skip the LLM layer
 
 Date: 2026-07-06

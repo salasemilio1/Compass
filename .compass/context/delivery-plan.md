@@ -1,3 +1,6 @@
+---
+claim: "gated: file/symbol, prompt and caller triggers for decision delivery; four-arm trigger eval with design/held-out sets"
+---
 # Compass v3: decision delivery (gated plan)
 
 Date: 2026-10-21
