@@ -7,3 +7,6 @@ cli/.venv/
 cli/.pytest_cache/
 cli/*.egg-info/
 cli/build/
+/bin/
+/dist/
+/.verify/
