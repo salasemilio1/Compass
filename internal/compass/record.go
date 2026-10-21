@@ -43,11 +43,11 @@ func (e *RecordError) Error() string { return e.Reason }
 
 var slugUnsafe = regexp.MustCompile(`[^a-z0-9]+`)
 
-// Slugify turns a claim into a short kebab-case filename part.
-func Slugify(text string) string {
+// Slugify turns text into a kebab-case filename part of at most maxWords words (0: no limit).
+func Slugify(text string, maxWords int) string {
 	words := strings.Fields(slugUnsafe.ReplaceAllString(strings.ToLower(text), " "))
-	if len(words) > 6 {
-		words = words[:6]
+	if maxWords > 0 && len(words) > maxWords {
+		words = words[:maxWords]
 	}
 	return strings.Join(words, "-")
 }
@@ -66,9 +66,9 @@ func Record(repo *Repo, request RecordRequest) (string, error) {
 	if len([]rune(claim)) > ClaimMaxChars {
 		return "", &RecordError{fmt.Sprintf("claim is %d characters, cap %d", len([]rune(claim)), ClaimMaxChars)}
 	}
-	slug := Slugify(request.Slug)
+	slug := Slugify(request.Slug, 0)
 	if slug == "" {
-		slug = Slugify(claim)
+		slug = Slugify(claim, 6)
 	}
 	if slug == "" {
 		return "", &RecordError{"cannot derive a filename from the claim; pass --slug"}

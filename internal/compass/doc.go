@@ -48,8 +48,12 @@ func (d *Doc) Live() bool { return len(d.SupersededBy) == 0 }
 // Global reports whether the record applies to the whole project, so resume delivers it.
 func (d *Doc) Global() bool { return d.Scope == "global" }
 
-// Number returns the NNNN prefix of a decision ID, or "".
+// Number returns the NNNN prefix of a decision's ID, or "" for any other record (a dated
+// "2026-10-15-x" context file must not read as decision 2026).
 func (d *Doc) Number() string {
+	if d.Category != "decisions" || datePrefix.MatchString(d.ID) {
+		return ""
+	}
 	if m := decisionNumber.FindString(d.ID); m != "" {
 		return strings.TrimSuffix(m, "-")
 	}

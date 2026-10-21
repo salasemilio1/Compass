@@ -4,7 +4,12 @@
 Start with `compass resume`: current-state, live global claims, uncommitted work.
 Records below are live; search all of .compass/ with `rg -i <term> .compass/`.
 
+## global (delivered by `compass resume`)
+- [2026-10-21-disposable-sessions](goals/2026-10-21-disposable-sessions.md) — Disposable sessions: any agent, Claude or not, resumes the work without a discovery phase
+
 ## decisions
+- [0013-plugin-is-a-subdirectory-with-reproducible-binaries](decisions/0013-plugin-is-a-subdirectory-with-reproducible-binaries.md) — the plugin is ./plugin (launcher in bin/, binaries in libexec/), built reproducibly so CI byte-checks the committed binaries
+- [0012-staleness-is-code-commits-after-current-state](decisions/0012-staleness-is-code-commits-after-current-state.md) — current-state is stale when code commits exist after the later of its in-history anchor and its last commit; stale warns locally and fails only CI (--require-fresh)
 - [0011-dedup-by-index-judge-not-embeddings](decisions/0011-dedup-by-index-judge-not-embeddings.md) — drop MiniLM embeddings (0.30 recall, 230 MB); dedup = cheap LLM judge over INDEX one-line hooks (P 0.96 / R 0.99, $0.017); merges append, never delete; no bulk consolidation (supersedes 0003)
 - [0010-go-binary-as-claude-code-plugin](decisions/0010-go-binary-as-claude-code-plugin.md) — compass becomes one Go binary (CLI + hook handler + MCP server over one core) shipped as a Claude Code plugin with committed mac/linux binaries; spike-verified install, hooks, MCP, subagent delivery…
 - [0009-environment-category-and-repo-layout-check](decisions/0009-environment-category-and-repo-layout-check.md) — adds an `environment/` category (one file per machine/service, keyed by host, overwritten in place) for SSH access/ports/version quirks that had no home; adds a warn-only `compass-check.sh` check…

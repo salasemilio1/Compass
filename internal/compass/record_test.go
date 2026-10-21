@@ -98,9 +98,21 @@ func TestSlugify(t *testing.T) {
 		"  Ünïcode & symbols!! ":                         "n-code-symbols",
 		"":                                               "",
 	} {
-		if got := Slugify(in); got != want {
+		if got := Slugify(in, 6); got != want {
 			t.Errorf("Slugify(%q) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+// Regression (dogfooding): a dated context record made the next decision 2027, and an explicit
+// --slug was cut to six words.
+func TestRecordNumbersOnlyFromDecisions(t *testing.T) {
+	f := newFixture(t)
+	f.record("decisions/0011-x.md", "claim: x")
+	f.record("context/2026-10-15-retro.md", "claim: retro")
+	path, err := Record(f.repo, RecordRequest{Kind: "decision", Claim: "c", Date: "2026-10-21", Slug: "one two three four five six seven"})
+	if err != nil || path != ".compass/decisions/0012-one-two-three-four-five-six-seven.md" {
+		t.Errorf("path %q, err %v", path, err)
 	}
 }
 
