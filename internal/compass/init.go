@@ -115,7 +115,7 @@ func Init(root string, options InitOptions) ([]string, error) {
 	if changed, err := EnsureClaudePointer(root); err != nil {
 		return actions, err
 	} else if changed {
-		actions = append(actions, "added @AGENTS.md to CLAUDE.md")
+		actions = append(actions, "added a compass pointer to CLAUDE.md")
 	}
 
 	if !options.NoGitHook && repo.IsGit() {

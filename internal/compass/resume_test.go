@@ -98,7 +98,7 @@ func TestInitScaffoldsAndIsIdempotent(t *testing.T) {
 	if !strings.HasPrefix(agents, "# Mine\n\nKeep this.\n\n"+agentsBegin) || !strings.Contains(agents, "compass resume") {
 		t.Errorf("AGENTS.md:\n%s", agents)
 	}
-	if f.read("CLAUDE.md") != "# CLAUDE.md\n\n@AGENTS.md\n" {
+	if f.read("CLAUDE.md") != "# CLAUDE.md\n\n"+claudePointer+"\n" {
 		t.Errorf("CLAUDE.md: %q", f.read("CLAUDE.md"))
 	}
 	if f.read(".gitignore") != "node_modules/\n.compass/scratch/\n" {

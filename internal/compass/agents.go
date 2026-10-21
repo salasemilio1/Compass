@@ -60,11 +60,11 @@ func UpsertAgentsBlock(root string) (bool, error) {
 	return true, writeFileAtomic(path, []byte(updated))
 }
 
-// claudePointer imports AGENTS.md into Claude Code's memory, so the block reaches Claude even
-// without the plugin.
-const claudePointer = "@AGENTS.md"
+// claudePointer is one plain line, not an @AGENTS.md import: many repos keep AGENTS.md as a full
+// copy of CLAUDE.md, and importing it would load the same instructions twice in every session.
+const claudePointer = "This repo keeps project memory in `.compass/`: run `compass resume` first (see the compass block in AGENTS.md)."
 
-// EnsureClaudePointer makes CLAUDE.md import AGENTS.md, unless it already mentions AGENTS.md.
+// EnsureClaudePointer adds the pointer to CLAUDE.md unless it already mentions `compass resume`.
 func EnsureClaudePointer(root string) (bool, error) {
 	path := filepath.Join(root, "CLAUDE.md")
 	data, err := os.ReadFile(path)
@@ -72,7 +72,7 @@ func EnsureClaudePointer(root string) (bool, error) {
 		return false, err
 	}
 	old := string(data)
-	if strings.Contains(old, "AGENTS.md") {
+	if strings.Contains(old, "compass resume") {
 		return false, nil
 	}
 	updated := "# CLAUDE.md\n\n" + claudePointer + "\n"
