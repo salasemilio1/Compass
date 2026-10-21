@@ -77,7 +77,7 @@ func TestBriefTextRespectsMaxChars(t *testing.T) {
 	if len(text) > 9500 {
 		t.Fatalf("text is %d bytes", len(text))
 	}
-	for _, want := range []string{"first line", "1. the last line", "current-state cut here", "## Live global decisions"} {
+	for _, want := range []string{"first line", "1. the last line", "current-state cut here", "## Live global records (decisions and goals with scope: global)"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("lacks %q", want)
 		}

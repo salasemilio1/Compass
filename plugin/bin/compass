@@ -27,8 +27,8 @@ esac
 binary=$root/libexec/compass-$os-$arch
 if [ ! -x "$binary" ]; then
   echo "compass: no prebuilt binary for $(uname -s)/$(uname -m) (looked for $binary)" >&2
-  # A hook must never block the agent, so hook calls exit 0 even here.
-  [ "$1" = hook ] && [ "$2" != pre-commit ] && exit 0
+  # A hook must never block the agent or a commit on a host compass doesn't support.
+  [ "$1" = hook ] && exit 0
   exit 1
 fi
 exec "$binary" "$@"

@@ -143,3 +143,64 @@ func TestPreCommitChecksWhatIsStaged(t *testing.T) {
 		t.Errorf("staged index:\n%s", staged)
 	}
 }
+
+// Regression tests for the second fresh-context review (2026-10-21).
+
+// A ref to an untracked file passes on disk but would fail in a fresh clone.
+func TestPreCommitChecksPathsAgainstTheStagedTree(t *testing.T) {
+	f := newFixture(t)
+	f.state(f.commit("init"))
+	f.clean()
+	f.commit("compass")
+	f.write("local-only.txt", "not staged\n")
+	f.record("decisions/0001-x.md", "claim: x\nrefs: [local-only.txt]")
+	f.git("add", ".compass/")
+	findings, err := PreCommit(f.repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasCode(findings, "ref-unresolved") {
+		t.Errorf("a ref to an unstaged file passed: %v", findings)
+	}
+	f.git("add", "local-only.txt")
+	if findings, err := PreCommit(f.repo); err != nil || HasErrors(findings) {
+		t.Errorf("staged ref still fails: %v %v", findings, err)
+	}
+}
+
+// The staged index matches the staged records, the working-tree index the working-tree ones.
+func TestPreCommitKeepsEachIndexWithItsRecords(t *testing.T) {
+	f := newFixture(t)
+	f.state(f.commit("init"))
+	f.clean()
+	f.commit("compass")
+	f.record("decisions/0001-staged.md", "claim: staged")
+	f.git("add", ".compass/decisions/0001-staged.md")
+	f.record("decisions/0002-unstaged.md", "claim: unstaged")
+	if findings, err := PreCommit(f.repo); err != nil || HasErrors(findings) {
+		t.Fatalf("%v %v", findings, err)
+	}
+	staged := f.git("show", ":.compass/INDEX.md")
+	working := f.read(".compass/INDEX.md")
+	if !strings.Contains(staged, "0001-staged") || strings.Contains(staged, "0002-unstaged") {
+		t.Errorf("staged index:\n%s", staged)
+	}
+	if !strings.Contains(working, "0002-unstaged") {
+		t.Errorf("working index lacks the unstaged record:\n%s", working)
+	}
+	f.git("commit", "-q", "-m", "partial")
+	if hasCode(f.check(CheckOptions{}), "index-stale") {
+		t.Error("working tree reports a stale index after a partial commit")
+	}
+}
+
+func TestInitMarksTheIndexForUnionMerges(t *testing.T) {
+	f := newFixture(t)
+	f.commit("init")
+	if _, err := Init(f.repo.Root, InitOptions{NoGitHook: true}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(f.read(".gitattributes"), ".compass/INDEX.md merge=union") {
+		t.Error("no merge=union line")
+	}
+}

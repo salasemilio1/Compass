@@ -114,7 +114,7 @@ func (b *Brief) Text(maxChars int) string {
 	if b.Branch != "" {
 		fmt.Fprintf(&head, " (branch %s)", b.Branch)
 	}
-	head.WriteString("\n")
+	head.WriteString("This brief already contains current-state.md in full and the live global records: don't re-read them.\n")
 	if b.Head != "" {
 		fmt.Fprintf(&head, "HEAD: %s\n", b.Head)
 	}
@@ -139,7 +139,7 @@ func (b *Brief) Text(maxChars int) string {
 	for i, claim := range b.Claims {
 		claims[i] = "- " + claim
 	}
-	writeSection("Live global decisions", claims, "(none recorded with scope: global)")
+	writeSection("Live global records (decisions and goals with scope: global)", claims, "(none recorded with scope: global)")
 	if b.Branch != "" || b.Head != "" {
 		writeSection("Uncommitted work (git status)", b.Status, "(clean)")
 		if len(b.DiffStat) > 0 {

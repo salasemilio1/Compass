@@ -74,7 +74,7 @@ func SessionStart(input Input, pathList, pluginRoot string) ([]byte, error) {
 		return nil, err
 	}
 	var preface strings.Builder
-	preface.WriteString("compass: this is the resume brief (`compass resume`), already loaded; don't re-run it or re-read current-state.md.\n")
+	preface.WriteString("compass: this is the resume brief (`compass resume`), already loaded; don't re-run it.\n")
 	if strings.HasPrefix(brief.Freshness, "STALE") && input.Source == "compact" {
 		preface.WriteString("Context was just compacted and current-state.md is stale: rewrite it now, before continuing.\n")
 	}

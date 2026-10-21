@@ -45,7 +45,8 @@ compass`), or delete the binary. Nothing else is written outside your repositori
 ## Use (v3)
 
 ```bash
-compass init        # once per repo: .compass/, the AGENTS.md block, a git pre-commit hook
+compass init        # once per repo: .compass/, the AGENTS.md block, a git pre-commit hook;
+                    # fill in the current-state template before your first commit (check rejects it)
 compass resume      # what a fresh agent reads first
 compass record decision --claim "Prices come from the model's own fit" --premise "goal:quick-flip"
 compass check       # caps, anchor, files in play, claims, supersedes, refs (pre-commit and CI)

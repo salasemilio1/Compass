@@ -50,11 +50,11 @@ that changed current-state.md.
 
 ### Commands and checks
 `compass check` exit status is 1 on any error; warnings never fail it. Codes:
-`index-stale`, `record-unparseable`, `claim-missing`, `claim-too-long`, `status-handwritten`,
+`record-unparseable`, `claim-missing`, `claim-too-long`, `status-handwritten`,
 `record-too-long`, `scope-invalid`, `supersedes-dangling`, `supersedes-self`, `supersedes-cycle`,
-`decision-number-duplicate`, `ref-unresolved`, `current-state-too-long`, `file-in-play-missing`,
+`supersedes-ambiguous`, `ref-unresolved`, `current-state-too-long`, `file-in-play-missing`,
 `anchor-missing`, `anchor-malformed` (errors); `current-state-missing`, `anchor-unresolved`,
-`agents-block-drift`, `layout-drift` (warnings); `anchor-stale` (a warning, an error with
+`agents-block-drift`, `layout-drift`, `index-stale`, `decision-number-duplicate` (warnings); `anchor-stale` (a warning, an error with
 `--require-fresh`). `--fix` regenerates the index and stamps HEAD into an anchor that is missing,
 malformed, or names no commit; it never restamps a real but stale anchor.
 
@@ -64,12 +64,16 @@ the commits since current-state was written, `git status` and `git diff --stat H
 the SessionStart hook cuts it to 9,500 characters, current-state from the middle out.
 
 ### AGENTS.md and CLAUDE.md
-Compass writes only the block between `<!-- compass:begin ... -->` and `<!-- compass:end -->` in
-`AGENTS.md`, and one pointer line in `CLAUDE.md`. Nothing else in files the user owns.
+In files the user owns, compass writes only: the block between `<!-- compass:begin ... -->` and
+`<!-- compass:end -->` in `AGENTS.md`, one pointer line in `CLAUDE.md`, one line each in
+`.gitignore` (`.compass/scratch/`, or `.compass/` when branch-local) and `.gitattributes`
+(`.compass/INDEX.md merge=union`), and a git pre-commit hook only where none exists (or its own,
+refreshed).
 
 ### Hooks
 `compass hook session-start|stop|pre-compact` read Claude Code's JSON on stdin and always exit 0.
-`compass hook pre-commit` checks `.compass/` as staged and exits 1 on errors.
+`compass hook pre-commit` checks `.compass/` as staged (paths in refs and files in play must be
+staged too), stages the index generated from the staged records, and exits 1 on errors.
 
 ## Part B: v2
 

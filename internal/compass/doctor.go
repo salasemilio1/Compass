@@ -99,7 +99,7 @@ func Doctor(start, pathList string) *DoctorReport {
 	}
 	switch {
 	case len(report.OnPath) == 0:
-		report.Problems = append(report.Problems, "no `compass` on PATH: agents outside Claude Code (and git hooks) can't run it. Symlink the plugin's bin/compass or a release binary into a PATH directory")
+		report.Problems = append(report.Problems, "no `compass` on PATH: agents outside Claude Code can't run it (the git hook falls back to the Claude Code plugin's copy). Install a release binary or `go install` it")
 	case report.OnPath[0].Kind == "python":
 		report.Problems = append(report.Problems, fmt.Sprintf("%s is the Python compass-cli (v2) and shadows this one; remove it: uv tool uninstall compass-cli", report.OnPath[0].Path))
 	case report.OnPath[0].Kind != "go":

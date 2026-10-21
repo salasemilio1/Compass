@@ -27,6 +27,28 @@ type Repo struct {
 	// deadline, when set, bounds all git calls together: a hook makes a dozen of them under one
 	// timeout from Claude Code.
 	deadline time.Time
+	// staged, when set, is the set of paths in git's index: pre-commit checks that paths exist in
+	// what is being committed, not in the working tree.
+	staged map[string]bool
+}
+
+// exists reports whether a path relative to the project root exists: in the staged tree during
+// pre-commit, on disk otherwise. A directory exists when any staged file is under it.
+func (r *Repo) exists(path string) bool {
+	path = filepath.ToSlash(filepath.Clean(path))
+	if r.staged == nil {
+		_, err := os.Stat(filepath.Join(r.Root, filepath.FromSlash(path)))
+		return err == nil
+	}
+	if r.staged[path] {
+		return true
+	}
+	for staged := range r.staged {
+		if strings.HasPrefix(staged, path+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // SetDeadline bounds every later git call by t; calls past it fail fast and the caller degrades.

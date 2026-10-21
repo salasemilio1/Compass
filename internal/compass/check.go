@@ -70,21 +70,24 @@ func Check(repo *Repo, options CheckOptions) ([]Finding, error) {
 		return nil, err
 	}
 	if current, err := os.ReadFile(filepath.Join(repo.Dir, IndexPath)); err != nil || string(current) != generated {
-		findings = append(findings, Finding{Severity: SeverityError, Code: "index-stale", Path: ".compass/" + IndexPath,
+		// A warning: the index is generated, pre-commit rewrites it, and a merge of two branches
+		// that both added records leaves it stale through no one's fault.
+		findings = append(findings, Finding{Severity: SeverityWarn, Code: "index-stale", Path: ".compass/" + IndexPath,
 			Message: "does not match the records (regenerate: compass index)", Fixable: true})
 	}
 
-	// Two agents recording at once can both take the next number; `supersedes: 0012` would then
-	// be ambiguous.
+	// Parallel branches each take the next decision number, so a merge can hold two 0013s. That is
+	// legal (records are never renamed); only a bare `supersedes: 0013` becomes ambiguous.
 	numbers := map[string][]string{}
 	for _, doc := range docs {
-		if number := doc.Number(); doc.Category == "decisions" && number != "" {
+		if number := doc.Number(); number != "" {
 			numbers[number] = append(numbers[number], doc.ID)
 		}
 	}
 	for number, ids := range numbers {
 		if len(ids) > 1 {
-			add(SeverityError, "decision-number-duplicate", ".compass/decisions/", "number %s is used by %s: renumber the newer one", number, strings.Join(ids, " and "))
+			sort.Strings(ids)
+			add(SeverityWarn, "decision-number-duplicate", ".compass/decisions/", "number %s is used by %s (parallel branches?); refer to them by full ID", number, strings.Join(ids, " and "))
 		}
 	}
 
@@ -109,6 +112,8 @@ func Check(repo *Repo, options CheckOptions) ([]Finding, error) {
 		for _, target := range doc.Supersedes {
 			old := Resolve(docs, target)
 			switch {
+			case len(numbers[strings.TrimSpace(target)]) > 1:
+				add(SeverityError, "supersedes-ambiguous", path, "supersedes %q, which names %s: use the full ID", target, strings.Join(numbers[strings.TrimSpace(target)], " and "))
 			case old == nil && doc.LegacySupersedes:
 			case old == nil:
 				add(SeverityError, "supersedes-dangling", path, "supersedes %q, which is not a record", target)
@@ -162,13 +167,8 @@ func checkRef(repo *Repo, doc *Doc, ref string, git bool) string {
 		return ""
 	}
 	path, _, _ := strings.Cut(ref, "#")
-	candidates := []string{
-		filepath.Join(repo.Root, filepath.FromSlash(path)),
-		filepath.Join(repo.Dir, filepath.FromSlash(path)),
-		filepath.Join(repo.Dir, filepath.FromSlash(filepath.Dir(doc.Path)), filepath.FromSlash(path)),
-	}
-	for _, candidate := range candidates {
-		if _, err := os.Stat(candidate); err == nil {
+	for _, candidate := range []string{path, ".compass/" + path, ".compass/" + filepath.ToSlash(filepath.Dir(doc.Path)) + "/" + path} {
+		if repo.exists(candidate) {
 			return ""
 		}
 	}
@@ -220,7 +220,7 @@ func checkCurrentState(repo *Repo, options CheckOptions, git bool) []Finding {
 			Message: fmt.Sprintf("%d lines, cap %d: keep only now and next; decisions and results go in records", state.Lines, CurrentStateMaxLines)})
 	}
 	for _, file := range state.FilesInPlay {
-		if _, err := os.Stat(filepath.Join(repo.Root, filepath.FromSlash(file))); err != nil {
+		if !repo.exists(file) {
 			findings = append(findings, Finding{Severity: SeverityError, Code: "file-in-play-missing", Path: path,
 				Message: fmt.Sprintf("files in play lists %q, which does not exist", file)})
 		}

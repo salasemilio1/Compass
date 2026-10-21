@@ -40,12 +40,17 @@ Commit: %s
 const gitPreCommit = `#!/bin/sh
 # Installed by ` + "`compass init`" + `: regenerates .compass/INDEX.md and runs ` + "`compass check`" + ` on what is staged.
 compass=
-if compass version 2>/dev/null | grep -q '(format 3)'; then
+if compass version 2>/dev/null | grep -q '(format [0-9]'; then
   compass=compass
 else
-  for candidate in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/cache/compass/compass/*/bin/compass; do
-    [ -x "$candidate" ] && [ ! -e "${candidate%/bin/compass}/.orphaned_at" ] && compass=$candidate
-  done
+  # The plugin's newest copy by modification time, skipping versions Claude Code has orphaned.
+  compass=$(ls -dt "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/cache/compass/compass/*/ 2>/dev/null |
+    while IFS= read -r dir; do
+      if [ -x "${dir}bin/compass" ] && [ ! -e "${dir}.orphaned_at" ]; then
+        printf '%s' "${dir}bin/compass"
+        break
+      fi
+    done)
 fi
 if [ -z "$compass" ]; then
   echo "compass: no Go compass on PATH or in the Claude Code plugin; skipping .compass/ checks (see: compass doctor)" >&2
@@ -102,6 +107,14 @@ func Init(root string, options InitOptions) ([]string, error) {
 		return actions, err
 	} else if added {
 		actions = append(actions, "added "+ignore+" to .gitignore")
+	}
+
+	// INDEX.md is generated: when two branches both add records, a union merge keeps both sets
+	// of lines instead of a conflict, and the next commit regenerates it.
+	if added, err := ensureLine(filepath.Join(root, ".gitattributes"), ".compass/INDEX.md merge=union"); err != nil {
+		return actions, err
+	} else if added {
+		actions = append(actions, "added .compass/INDEX.md merge=union to .gitattributes")
 	}
 
 	if changed, err := UpsertAgentsBlock(root); err != nil {
@@ -176,10 +189,12 @@ func ensureLine(path, line string) (bool, error) {
 }
 
 // PreCommit is the git pre-commit step. It checks .compass/ as staged, not as in the working
-// tree, so an unstaged fix can't hide a broken staged record and an untracked record can't land in
-// the index: it exports the staged files, regenerates INDEX.md from them, stages that, and checks
-// the export. A gitignored .compass/ (branch-local mode) is checked in the working tree instead.
-// It returns the findings; the caller fails the commit on errors.
+// tree, so an unstaged fix can't hide a broken staged record and an untracked file can't satisfy a
+// ref: it exports the staged .compass/, checks paths against the staged file list, and writes the
+// index generated from the staged records straight into git's index. The working tree's INDEX.md
+// is regenerated from the working tree, so each matches its own records. A gitignored .compass/
+// (branch-local mode) is checked in the working tree instead. The caller fails the commit on
+// errors.
 func PreCommit(repo *Repo) ([]Finding, error) {
 	index := ".compass/" + IndexPath
 	if _, err := repo.Git("check-ignore", "-q", index); err == nil {
@@ -188,9 +203,23 @@ func PreCommit(repo *Repo) ([]Finding, error) {
 		}
 		return Check(repo, CheckOptions{})
 	}
-	files, err := repo.Git("ls-files", "-z", "--cached", "--", ".compass")
-	if err != nil || strings.Trim(files, "\x00") == "" {
+	all, err := repo.Git("ls-files", "-z", "--cached")
+	if err != nil {
 		return nil, err
+	}
+	staged := map[string]bool{}
+	var compassFiles []string
+	for _, path := range strings.Split(all, "\x00") {
+		if path == "" {
+			continue
+		}
+		staged[path] = true
+		if strings.HasPrefix(path, ".compass/") {
+			compassFiles = append(compassFiles, path)
+		}
+	}
+	if len(compassFiles) == 0 {
+		return nil, nil
 	}
 	export, err := os.MkdirTemp("", "compass-staged-")
 	if err != nil {
@@ -198,24 +227,31 @@ func PreCommit(repo *Repo) ([]Finding, error) {
 	}
 	defer os.RemoveAll(export)
 	command := exec.Command("git", "-C", repo.Root, "checkout-index", "--stdin", "-z", "--prefix="+export+string(filepath.Separator))
-	command.Stdin = strings.NewReader(files)
+	command.Stdin = strings.NewReader(strings.Join(compassFiles, "\x00"))
 	if out, err := command.CombinedOutput(); err != nil {
 		return nil, &GitError{Args: []string{"checkout-index"}, Stderr: string(out), Err: err}
 	}
-	staged := &Repo{Root: repo.Root, Dir: filepath.Join(export, ".compass"), gitTimeout: repo.gitTimeout, deadline: repo.deadline}
-	if changed, err := WriteIndex(staged); err != nil {
+	snapshot := &Repo{Root: repo.Root, Dir: filepath.Join(export, ".compass"), gitTimeout: repo.gitTimeout, deadline: repo.deadline, staged: staged}
+	if changed, err := WriteIndex(snapshot); err != nil {
 		return nil, err
 	} else if changed {
-		data, err := os.ReadFile(filepath.Join(staged.Dir, IndexPath))
+		data, err := os.ReadFile(filepath.Join(snapshot.Dir, IndexPath))
 		if err != nil {
 			return nil, err
 		}
-		if err := writeFileAtomic(filepath.Join(repo.Dir, IndexPath), data); err != nil {
+		hash := exec.Command("git", "-C", repo.Root, "hash-object", "-w", "--stdin")
+		hash.Stdin = strings.NewReader(string(data))
+		out, err := hash.Output()
+		if err != nil {
+			return nil, &GitError{Args: []string{"hash-object"}, Err: err}
+		}
+		if _, err := repo.Git("update-index", "--add", "--cacheinfo", "100644,"+strings.TrimSpace(string(out))+","+index); err != nil {
 			return nil, err
 		}
-		if _, err := repo.Git("add", "--", index); err != nil {
-			return nil, err
-		}
+		snapshot.staged[index] = true
 	}
-	return Check(staged, CheckOptions{})
+	if _, err := WriteIndex(repo); err != nil {
+		return nil, err
+	}
+	return Check(snapshot, CheckOptions{})
 }

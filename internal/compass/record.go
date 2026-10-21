@@ -77,10 +77,15 @@ func Record(repo *Repo, request RecordRequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Store the full ID, not the number given: a parallel branch can later add a second record
+	// with the same number.
+	var supersedes []string
 	for _, target := range request.Supersedes {
-		if Resolve(docs, target) == nil {
+		old := Resolve(docs, target)
+		if old == nil {
 			return "", &RecordError{fmt.Sprintf("--supersedes %q is not a record", target)}
 		}
+		supersedes = append(supersedes, old.ID)
 	}
 
 	name := request.Date + "-" + slug + ".md"
@@ -102,7 +107,7 @@ func Record(repo *Repo, request RecordRequest) (string, error) {
 	if request.Global {
 		text.WriteString("scope: global\n")
 	}
-	writeList(&text, "supersedes", request.Supersedes)
+	writeList(&text, "supersedes", supersedes)
 	writeList(&text, "premises", request.Premises)
 	writeList(&text, "refs", request.Refs)
 	text.WriteString("---\n")

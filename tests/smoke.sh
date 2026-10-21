@@ -14,6 +14,7 @@ pass() { echo "ok   $*"; }
 mkdir -p "$work/bin"
 ln -s "$repo_root/plugin/bin/compass" "$work/bin/compass"
 export PATH="$work/bin:/usr/bin:/bin"
+export CLAUDE_CONFIG_DIR="$work/no-claude-config"
 export GIT_CONFIG_GLOBAL=/dev/null GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@x GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@x
 command -v go >/dev/null 2>&1 && fail "go is on the test PATH"
 compass version | grep -q '(format 3)' || fail "version through a symlinked launcher"
@@ -85,6 +86,24 @@ grep -q "no Go compass on PATH" "$work/shadow.err" || fail "no shadow warning: $
 if PATH="$work/pybin:$PATH" "$repo_root/plugin/bin/compass" doctor > "$work/doctor.out"; then fail "doctor passed with a shadow"; fi
 grep -q "uv tool uninstall compass-cli" "$work/doctor.out" || fail "doctor output: $(cat "$work/doctor.out")"
 pass "a shadowing Python compass-cli: commits proceed, doctor flags it"
+
+# Plugin-only install: no compass on PATH, the git hook finds the plugin's cached copy (newest
+# non-orphaned version), even under a config dir with a space in its path.
+config="$work/claude config"
+mkdir -p "$config/plugins/cache/compass/compass"
+cp -R "$repo_root/plugin" "$config/plugins/cache/compass/compass/0.3.0"
+mkdir -p "$config/plugins/cache/compass/compass/9.9.9/bin"
+printf '#!/bin/sh\nexit 1\n' > "$config/plugins/cache/compass/compass/9.9.9/bin/compass"
+chmod +x "$config/plugins/cache/compass/compass/9.9.9/bin/compass"
+touch "$config/plugins/cache/compass/compass/9.9.9/.orphaned_at"
+printf -- '---\ndate: 2026-10-21\n---\n' > .compass/decisions/0003-no-claim.md
+git add -A
+if PATH="$work/pybin:/usr/bin:/bin" CLAUDE_CONFIG_DIR="$config" git commit -q -m "bad, plugin-only" 2> "$work/fallback.err"; then
+  fail "the plugin-cache fallback let a claimless record through"
+fi
+grep -q "claim-missing" "$work/fallback.err" || fail "fallback output: $(cat "$work/fallback.err")"
+rm .compass/decisions/0003-no-claim.md && git add -A
+pass "plugin-only install: the git hook uses the cached plugin, skipping an orphaned version"
 
 # Hooks fail open when the platform binary is missing.
 mkdir -p "$work/broken/bin" "$work/broken/libexec"

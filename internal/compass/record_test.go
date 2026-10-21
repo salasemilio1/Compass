@@ -26,7 +26,7 @@ claim: "Use Go: one binary"
 date: 2026-10-21
 scope: global
 supersedes:
-  - "0006"
+  - 0006-old
 premises:
   - goal:portable
   - startup < 50 ms
@@ -50,7 +50,7 @@ refs:
 		t.Errorf("index not regenerated:\n%s", f.read(".compass/INDEX.md"))
 	}
 	doc, err := ParseDoc(f.repo.Dir, "decisions/0007-use-go-one-binary.md")
-	if err != nil || doc.Claim != "Use Go: one binary" || doc.Supersedes[0] != "0006" || !doc.Global() {
+	if err != nil || doc.Claim != "Use Go: one binary" || doc.Supersedes[0] != "0006-old" || !doc.Global() {
 		t.Errorf("does not parse back: %+v %v", doc, err)
 	}
 }
@@ -121,8 +121,15 @@ func TestCheckFlagsDuplicateDecisionNumbers(t *testing.T) {
 	f.state(f.commit("init"))
 	f.record("decisions/0012-a.md", "claim: a")
 	f.record("decisions/0012-b.md", "claim: b")
+	f.record("decisions/0013-c.md", "claim: c\nsupersedes: [0012-a]")
 	f.clean()
-	if got := codes(f.check(CheckOptions{})); len(got) != 1 || got[0] != "error:decision-number-duplicate" {
+	// Parallel branches legitimately produce this; it warns, it doesn't block.
+	if got := codes(f.check(CheckOptions{})); len(got) != 1 || got[0] != "warn:decision-number-duplicate" {
 		t.Errorf("got %v", got)
+	}
+	f.record("decisions/0014-d.md", "claim: d\nsupersedes: [0012]")
+	f.clean()
+	if got := codes(f.check(CheckOptions{})); !hasCode(f.check(CheckOptions{}), "supersedes-ambiguous") {
+		t.Errorf("a bare duplicate number in supersedes must be an error: %v", got)
 	}
 }
