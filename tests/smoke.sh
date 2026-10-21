@@ -78,7 +78,7 @@ pass "pre-commit blocks a record without a claim"
 
 # The old Python compass-cli first on PATH: commits are not blocked, doctor names it.
 mkdir "$work/pybin"
-printf '#!/usr/bin/python3\nimport sys; sys.exit(2)\n' > "$work/pybin/compass"
+printf '#!/usr/bin/env python3\nimport sys; sys.exit(2)\n' > "$work/pybin/compass"
 chmod +x "$work/pybin/compass"
 PATH="$work/pybin:$PATH" git commit -q --allow-empty -m "with python shadow" 2> "$work/shadow.err" || fail "the Python shadow blocked a commit"
 grep -q "no Go compass on PATH" "$work/shadow.err" || fail "no shadow warning: $(cat "$work/shadow.err")"
