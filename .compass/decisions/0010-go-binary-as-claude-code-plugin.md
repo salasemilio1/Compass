@@ -3,6 +3,10 @@
 Date: 2026-10-21
 Supersedes: 0006
 Amends: 0007 (the CLI moves from Python/Click to Go; its scope grows from `init` to every deterministic step)
+Scope note (same day, after the whole-plan review): the MCP server is deferred to the gated
+[delivery-plan.md](../context/delivery-plan.md); the core binary is the CLI plus hook handler. The
+binary also ships through GitHub releases and `go install`, not only the plugin, so non-Claude agents
+get it. See [positioning.md](../context/positioning.md).
 
 ## Context
 v2's deterministic tools never ran outside this repo. `wrap-up` called `scripts/compass-check.sh` and

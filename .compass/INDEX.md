@@ -4,7 +4,7 @@
 > repo so sessions start informed instead of cold, plus skills to load/save it (`warm-up`, `wrap-up`,
 > `init-compass`) and a `SessionStart` hook that nudges agents to use it.
 
-**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context, compass CLI), Markdown (skills, spec, template)   ·   **Mode:** committed, steady-state (main)   ·   **Updated:** 2026-10-21 (v3 direction set: Go plugin, positioning/delivery, dedup by index judge)
+**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context, compass CLI), Markdown (skills, spec, template)   ·   **Mode:** committed, steady-state (main)   ·   **Updated:** 2026-10-21 (v3 trimmed to a core; delivery gated in its own plan)
 
 ## Start here
 - New to the project? Read: [context/overview.md](context/overview.md), [SPEC.md](../SPEC.md)
@@ -16,10 +16,11 @@
 
 ## context
 <!-- one line per entry; this is a retrieval hint, not a summary -->
-- [current-state.md](context/current-state.md) — compass init CLI verified working end-to-end; stray backup symlinks in ~/.claude flagged for deletion next session; dedup stage 3 flagged as never verified against a real embedder
+- [current-state.md](context/current-state.md) — v3 plan trimmed to a core; Go implementation on branch `go-rewrite`; eval on an ebay-flipper copy plus synthetic sessions
 - [overview.md](context/overview.md) — what compass is, the three-layer model (compass/context-mode/graphify), repo layout
-- [positioning.md](context/positioning.md) — v3 core: compass is the colleague layer (non-derivable intent); current-state front door + path-triggered decision delivery gated by a trigger eval; no human gate; no manual wrap-up
-- [v3-direction.md](context/v3-direction.md) — open: one-CLI portability (guards never shipped), capped generated index, retrieval options (frontmatter, SQLite FTS5, embeddings, MCP), chosen by a retrieval eval
+- [positioning.md](context/positioning.md) — v3 goal (disposable sessions, cross-agent resume), staleness rule (nothing maintained in place, expiry by event), and the core: check/index/record/resume + AGENTS.md block + hooks
+- [delivery-plan.md](context/delivery-plan.md) — gated: file/symbol, prompt and caller triggers for decision delivery; four-arm trigger eval with design/held-out sets
+- [SUPERSEDED except §1] [v3-direction.md](context/v3-direction.md) — portability (§1) still holds; retrieval B–E deferred, hygiene replaced, session economics moved out
 - [2026-10-15-ebay-flipper-retro.md](context/2026-10-15-ebay-flipper-retro.md) — first long-run field data: 90% of cost in main sessions, 78% above 300k context; 103 KB INDEX; logs/learnings mostly never re-read; model-by-task grades
 
 ## environment
@@ -40,7 +41,7 @@
 - [0008-graphify-becomes-optional-add-on.md](decisions/0008-graphify-becomes-optional-add-on.md) — graphify moves from default-installed+enforced to opt-in only (`COMPASS_WITH_GRAPHIFY=1`); a week under decisions/0005's forced-routing guard produced under 5 real uses despite the tool working well when live-tested, so demand — not enforcement — was the gap; drops the guard's graphify rule, keeps deterministic-only mode if opted in
 - [0009-environment-category-and-repo-layout-check.md](decisions/0009-environment-category-and-repo-layout-check.md) — adds an `environment/` category (one file per machine/service, keyed by host, overwritten in place) for SSH access/ports/version quirks that had no home; adds a warn-only `compass-check.sh` check that a repo's top-level dirs are mentioned in `context/overview.md`; spec version 1 → 2
 - [0010-go-binary-as-claude-code-plugin.md](decisions/0010-go-binary-as-claude-code-plugin.md) — compass becomes one Go binary (CLI + hook handler + MCP server over one core) shipped as a Claude Code plugin with committed mac/linux binaries; spike-verified install, hooks, MCP, subagent delivery (supersedes 0006, amends 0007)
-- [0011-dedup-by-index-judge-not-embeddings.md](decisions/0011-dedup-by-index-judge-not-embeddings.md) — drop MiniLM embeddings (0.30 recall, 230 MB); dedup = cheap LLM judge over INDEX one-line hooks (P 0.96 / R 0.99, $0.017); merges append, never delete; no bulk consolidation (supersedes 0003)
+- [CONDITIONAL] [0011-dedup-by-index-judge-not-embeddings.md](decisions/0011-dedup-by-index-judge-not-embeddings.md) — drop MiniLM embeddings (0.30 recall, 230 MB); dedup = cheap LLM judge over INDEX one-line hooks (P 0.96 / R 0.99, $0.017); merges append, never delete; no bulk consolidation (supersedes 0003)
 
 ## experiments
 <!-- newest first; one line: model + headline result -->

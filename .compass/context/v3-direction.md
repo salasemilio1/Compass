@@ -1,7 +1,11 @@
 # Compass v3: direction and open options
 
 Date: 2026-10-15
-Status: open — options to evaluate, not decided. Evidence: [2026-10-15-ebay-flipper-retro.md](2026-10-15-ebay-flipper-retro.md).
+Status: **superseded except §1** (2026-10-21) by [positioning.md](positioning.md) and
+[delivery-plan.md](delivery-plan.md). §1 (portability) still holds. §2 retrieval options B–E are
+deferred until a retrieval eval shows need; §3 is replaced by positioning.md's staleness rule; §4
+(session economics) is session policy and moves to a separate tool. Kept as the record of what was
+considered. Evidence: [2026-10-15-ebay-flipper-retro.md](2026-10-15-ebay-flipper-retro.md).
 
 `.compass/` is read and written by agents, not people. Its design should be judged by one thing:
 how cheaply an agent gets the right context, and how reliably the corpus stays correct as it grows.
@@ -32,6 +36,8 @@ Requirements:
 - **Updates:** re-running the install updates everything, idempotently, as today.
 
 ## 2. Retrieval architecture: options
+> Superseded: option A (capped generated index) is the core; B–E deferred.
+
 Markdown in git has real strengths for this job: it diffs, it is reviewable in a PR, any agent can
 read it, and it needs no server. What it lacks is a cheap way to ask "which few docs matter for this
 task" without reading a catalogue. Options, cheapest first:
@@ -66,7 +72,13 @@ actually asked in ebay-flipper sessions, each with the doc(s) that answered it. 
 recall@5 and tokens read per question. Adopt the cheapest one that clears the bar. The transcripts
 already hold the questions and the docs that were then read.
 
+Delivery triggers (file/symbol, prompt, caller) and the four-arm trigger eval, including a
+decaying-log arm, are specified in [positioning.md](positioning.md); its staleness rule (nothing is
+maintained in place) applies to every option here.
+
 ## 3. Corpus hygiene (any option)
+> Superseded by positioning.md's staleness rule and `compass check`.
+
 - **Cap the index by tokens, not rows,** enforced by `compass check` (target ~3k tokens).
 - **`status` on every doc,** so warm-up and search skip dead material (~60% of the ebay-flipper
   corpus).
@@ -80,6 +92,8 @@ already hold the questions and the docs that were then read.
 - **Cap `current-state.md`** (e.g. 80 lines); stale next-steps move to a backlog doc.
 
 ## 4. Session economics: make short sessions the default, not a discipline
+> Superseded: session policy, moved out of compass to a separate tool (`tools/session-context/`).
+
 **Why sessions reached 1M (Emilio, 2026-10-15).** Wrap-up was not part of the PR process. A session
 would take a problem through the work loop, open a PR, then start the next problem in the same
 context, about 3 PRs' worth, and run wrap-up only when the context hit the limit. The long tail

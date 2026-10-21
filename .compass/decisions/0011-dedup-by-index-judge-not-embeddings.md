@@ -2,6 +2,9 @@
 
 Date: 2026-10-21
 Supersedes: 0003
+Status: **conditional** (2026-10-21): applies only if learnings survive as a category. v3 routes
+learnings out (to a rule, a comment or the decision they affect), which may leave nothing to dedup;
+see [positioning.md](../context/positioning.md). Not part of the core build.
 
 ## Context
 The learnings dedup filter (`tools/learning-dedup/check_similarity.py`) runs exact hash, then
