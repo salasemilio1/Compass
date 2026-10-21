@@ -1,40 +1,37 @@
 # current state
 
-Date: 2026-07-15
-Commit: 230017b
+Date: 2026-10-21
+Commit: c5a9521
 
 ## Where things stand
-Compass is `main`, steady-state, maintenance-mode. This session added a new `environment/` category
-(decisions/0009) — one file per machine/service, keyed by host, overwritten in place — for SSH
-access/ports/pinned-version quirks that had no home before, since `learnings/` is topic-keyed and
-dedups by text similarity rather than by host. Also added a warn-only `compass-check.sh` check (gap
-F) that a repo's top-level directories are mentioned in `context/overview.md`, after finding this
-repo's own copy was stale (missing `scripts/`, `cli/`, `tests/`, `tools/`; still referenced the
-pre-decisions/0007 `template/` path) — which was the actual reason agents couldn't find
-`scripts/compass-check.sh`. Spec version bumped 1 → 2.
+Compass is out of maintenance mode and its v3 direction is decided, but no v3 code exists yet.
+This session set the direction:
+- [positioning.md](positioning.md) covers what compass is for, how context gets delivered, the
+  closed loop with no manual wrap-up, and the critique dispositions.
+- [decisions/0010](../decisions/0010-go-binary-as-claude-code-plugin.md): one Go binary as CLI,
+  hook handler and MCP server, shipped as a Claude Code plugin.
+- [decisions/0011](../decisions/0011-dedup-by-index-judge-not-embeddings.md): dedup by an LLM judge
+  over INDEX summaries, with embeddings dropped.
+
+The v2 tools (`install.sh`, `scripts/compass-check.sh`, `tools/`, the Python `cli/`) still work
+and stay until their Go replacements land.
 
 ## Known issues / things to remember
-- `environment/` is private-first/promotable, same tier as `experiments`/`logs`/`learnings` — not
-  gitignored by default in committed mode, since that mirrors how this repo already treats similarly
-  specific detail in `learnings/`. It often names real hosts/usernames, so promotion to shared should
-  be deliberate.
-- `scripts/compass-check.sh`'s new repo-layout check is warn-only (never blocks) and matches on a
-  literal `` `dirname/ `` substring in `context/overview.md` — it only flags directories git actually
-  tracks, so gitignored/generated dirs (`graphify-out/`, `.venv`, etc.) never trigger it.
-- Every repo scaffolded under spec version 1 will now show as spec-version-behind (informational
-  only) until its `AGENTS.md` stamp is bumped — this is expected, not a regression.
-- graphify remains opt-in only (`COMPASS_WITH_GRAPHIFY=1 ./install.sh`); no change this session.
-- `.git/hooks/pre-commit` backstop (runs `compass-check.sh` check-only) is installed in this repo.
+- The dedup experiment (code, protocol, results) lives on branch `claude/dedup-experiment-436ce8`
+  (`ded4590`) and is **not merged**. 0011 cites it there.
+- The spike plugin is in the session scratchpad only (it will be lost). The facts it established
+  are recorded in 0010 and positioning.md.
+- **On migration, uninstall the Python `compass-cli`.** It sits earlier on `PATH` and shadows the
+  plugin's `compass`.
+- Decision delivery (the shoulder tap) is **gated**: build it only if the trigger eval (current-state
+  alone vs. why-comments vs. delivery) clears a bar that is written down before the eval runs.
 
 ## Next steps
-0. **(2026-10-15) Compass leaves maintenance mode for v3.** The first long-running project
-   (ebay-flipper) found v2's limits: read [2026-10-15-ebay-flipper-retro.md](2026-10-15-ebay-flipper-retro.md)
-   then [v3-direction.md](v3-direction.md). Start with portability (every deterministic tool as a
-   `compass` subcommand, since `compass-check.sh` and dedup never shipped), then the retrieval eval
-   that picks between the index options. Usage data: `tools/usage-retro/retro.py --repo <path>`.
-1. Commit this session's changes (environment category, repo-layout check, spec v2, overview.md fix)
-   — currently staged, not yet committed.
-2. No other backlog items remain from prior sessions — this session closed the two gaps it found.
-3. Compass stays maintenance-mode: fix real breakage as it's found, don't proactively expand scope.
-   If `environment/` sees real multi-host usage, revisit whether a flat `environment/<slug>.md` is
-   still the right shape (see decisions/0009's follow-up note).
+1. Decide whether to merge the dedup-experiment branch into `main`.
+2. **Scaffold the Go plugin:** repo layout (`cmd/`, `internal/`, `bin/`, `.claude-plugin/`), the
+   launcher, the CI release job building 4 targets, and a `compass doctor` that checks for shadowing.
+3. **Port `compass check`** from `scripts/compass-check.sh`: same checks A/B1/D/E/F, plus a check
+   that every doc carries its one-line `claim`.
+4. **Build the front door:** a SessionStart hook loading capped current-state; a Stop hook plus a CI
+   check for a stale `Commit:` anchor; `compass index` in pre-commit (replaces manual wrap-up).
+5. Build the trigger eval on ebay-flipper incidents before any delivery code.

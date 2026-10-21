@@ -4,7 +4,7 @@
 > repo so sessions start informed instead of cold, plus skills to load/save it (`warm-up`, `wrap-up`,
 > `init-compass`) and a `SessionStart` hook that nudges agents to use it.
 
-**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context, compass CLI), Markdown (skills, spec, template)   ·   **Mode:** committed, steady-state (main)   ·   **Updated:** 2026-07-15 (added `environment` category + repo-layout drift check, spec v2)
+**Stack:** bash (install script, hook, checks), Python (learnings dedup, session-context, compass CLI), Markdown (skills, spec, template)   ·   **Mode:** committed, steady-state (main)   ·   **Updated:** 2026-10-21 (v3 direction set: Go plugin, positioning/delivery, dedup by index judge)
 
 ## Start here
 - New to the project? Read: [context/overview.md](context/overview.md), [SPEC.md](../SPEC.md)
@@ -18,6 +18,7 @@
 <!-- one line per entry; this is a retrieval hint, not a summary -->
 - [current-state.md](context/current-state.md) — compass init CLI verified working end-to-end; stray backup symlinks in ~/.claude flagged for deletion next session; dedup stage 3 flagged as never verified against a real embedder
 - [overview.md](context/overview.md) — what compass is, the three-layer model (compass/context-mode/graphify), repo layout
+- [positioning.md](context/positioning.md) — v3 core: compass is the colleague layer (non-derivable intent); current-state front door + path-triggered decision delivery gated by a trigger eval; no human gate; no manual wrap-up
 - [v3-direction.md](context/v3-direction.md) — open: one-CLI portability (guards never shipped), capped generated index, retrieval options (frontmatter, SQLite FTS5, embeddings, MCP), chosen by a retrieval eval
 - [2026-10-15-ebay-flipper-retro.md](context/2026-10-15-ebay-flipper-retro.md) — first long-run field data: 90% of cost in main sessions, 78% above 300k context; 103 KB INDEX; logs/learnings mostly never re-read; model-by-task grades
 
@@ -31,13 +32,15 @@
 ## decisions
 - [SUPERSEDED by 0008] [0001-graphify-deterministic-only.md](decisions/0001-graphify-deterministic-only.md) — graphify wiring uses only its deterministic mode (no LLM/backend), for zero-cost always-fresh navigation
 - [SUPERSEDED by 0006] [0002-close-audited-gaps-with-deterministic-scripts.md](decisions/0002-close-audited-gaps-with-deterministic-scripts.md) — closed 5 audited bloat/staleness gaps with compass-check.sh + a 3-stage learnings-dedup filter; rejected Caveman/Headroom/semantic-tool-selection as the wrong layer
-- [0003-learnings-dedup-always-runs-stage3.md](decisions/0003-learnings-dedup-always-runs-stage3.md) — dropped the confidently-novel lexical short-circuit after real-content calibration found true paraphrases it silently missed
+- [SUPERSEDED by 0011] [0003-learnings-dedup-always-runs-stage3.md](decisions/0003-learnings-dedup-always-runs-stage3.md) — dropped the confidently-novel lexical short-circuit after real-content calibration found true paraphrases it silently missed
 - [0004-transcript-based-tool-efficiency-measurement.md](decisions/0004-transcript-based-tool-efficiency-measurement.md) — measure context-mode/graphify's real token savings by attributing per-turn token deltas to tool calls in the transcript, deterministic, no synthetic benchmark
 - [AMENDED by 0008] [0005-deterministic-tool-routing-guard.md](decisions/0005-deterministic-tool-routing-guard.md) — PreToolUse hook that denies heavy/broad Bash calls toward ctx_execute/graphify by command shape, with a per-session retry safety valve so an unavailable alternate tool can't deadlock a session
-- [0006-copy-not-symlink-global-install.md](decisions/0006-copy-not-symlink-global-install.md) — install.sh copies (not symlinks) skills/hooks so an ephemeral dotfiles clone can be deleted after install; drops the now-pointless $DOTFILES canonical-source guard and --dev flag (supersedes 0002)
-- [0007-compass-init-as-cli.md](decisions/0007-compass-init-as-cli.md) — init-compass's mechanical scaffolding moves to a real Click CLI (cli/), fixing the template-path bug by construction; warm-up/wrap-up stay markdown skills (judgment-heavy, weak fit for a CLI)
+- [SUPERSEDED by 0010] [0006-copy-not-symlink-global-install.md](decisions/0006-copy-not-symlink-global-install.md) — install.sh copies (not symlinks) skills/hooks so an ephemeral dotfiles clone can be deleted after install; drops the now-pointless $DOTFILES canonical-source guard and --dev flag (supersedes 0002)
+- [AMENDED by 0010] [0007-compass-init-as-cli.md](decisions/0007-compass-init-as-cli.md) — init-compass's mechanical scaffolding moves to a real Click CLI (cli/), fixing the template-path bug by construction; warm-up/wrap-up stay markdown skills (judgment-heavy, weak fit for a CLI)
 - [0008-graphify-becomes-optional-add-on.md](decisions/0008-graphify-becomes-optional-add-on.md) — graphify moves from default-installed+enforced to opt-in only (`COMPASS_WITH_GRAPHIFY=1`); a week under decisions/0005's forced-routing guard produced under 5 real uses despite the tool working well when live-tested, so demand — not enforcement — was the gap; drops the guard's graphify rule, keeps deterministic-only mode if opted in
 - [0009-environment-category-and-repo-layout-check.md](decisions/0009-environment-category-and-repo-layout-check.md) — adds an `environment/` category (one file per machine/service, keyed by host, overwritten in place) for SSH access/ports/version quirks that had no home; adds a warn-only `compass-check.sh` check that a repo's top-level dirs are mentioned in `context/overview.md`; spec version 1 → 2
+- [0010-go-binary-as-claude-code-plugin.md](decisions/0010-go-binary-as-claude-code-plugin.md) — compass becomes one Go binary (CLI + hook handler + MCP server over one core) shipped as a Claude Code plugin with committed mac/linux binaries; spike-verified install, hooks, MCP, subagent delivery (supersedes 0006, amends 0007)
+- [0011-dedup-by-index-judge-not-embeddings.md](decisions/0011-dedup-by-index-judge-not-embeddings.md) — drop MiniLM embeddings (0.30 recall, 230 MB); dedup = cheap LLM judge over INDEX one-line hooks (P 0.96 / R 0.99, $0.017); merges append, never delete; no bulk consolidation (supersedes 0003)
 
 ## experiments
 <!-- newest first; one line: model + headline result -->
