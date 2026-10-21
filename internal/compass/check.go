@@ -56,11 +56,10 @@ func Check(repo *Repo, options CheckOptions) ([]Finding, error) {
 	if info, err := os.Stat(repo.Dir); err != nil || !info.IsDir() {
 		return nil, ErrNoCompass
 	}
-	docs, err := LoadDocs(repo.Dir)
+	docs, findings, err := LoadDocs(repo.Dir)
 	if err != nil {
 		return nil, err
 	}
-	var findings []Finding
 	add := func(severity Severity, code, path, format string, args ...any) {
 		findings = append(findings, Finding{Severity: severity, Code: code, Path: path, Message: fmt.Sprintf(format, args...)})
 	}
@@ -110,6 +109,7 @@ func Check(repo *Repo, options CheckOptions) ([]Finding, error) {
 		for _, target := range doc.Supersedes {
 			old := Resolve(docs, target)
 			switch {
+			case old == nil && doc.LegacySupersedes:
 			case old == nil:
 				add(SeverityError, "supersedes-dangling", path, "supersedes %q, which is not a record", target)
 			case old == doc:

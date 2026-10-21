@@ -117,7 +117,7 @@ func TestLoadDocsDerivesSupersession(t *testing.T) {
 	f.write(".compass/context/current-state.md", "# not a record\n")
 	f.write(".compass/decisions/archive.md", "# not a record\n")
 	f.write(".compass/learnings/x.md", "# not a record category\n")
-	docs, err := LoadDocs(f.repo.Dir)
+	docs, _, err := LoadDocs(f.repo.Dir)
 	if err != nil {
 		t.Fatal(err)
 	}

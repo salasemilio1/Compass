@@ -22,9 +22,15 @@ var ErrNoCompass = errors.New("no .compass/ directory here or in any parent (run
 type Repo struct {
 	Root string
 	Dir  string
-	// gitTimeout bounds every git call, so a hook can't hang on a wedged repository.
+	// gitTimeout bounds each git call, so nothing hangs on a wedged repository.
 	gitTimeout time.Duration
+	// deadline, when set, bounds all git calls together: a hook makes a dozen of them under one
+	// timeout from Claude Code.
+	deadline time.Time
 }
+
+// SetDeadline bounds every later git call by t; calls past it fail fast and the caller degrades.
+func (r *Repo) SetDeadline(t time.Time) { r.deadline = t }
 
 // Find walks up from start to the nearest directory containing .compass/, stopping at a git
 // root so a nested repository never picks up an outer project's memory.
@@ -77,6 +83,11 @@ func (e *GitError) Unwrap() error { return e.Err }
 func (r *Repo) Git(args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), r.gitTimeout)
 	defer cancel()
+	if !r.deadline.IsZero() {
+		var cancelDeadline context.CancelFunc
+		ctx, cancelDeadline = context.WithDeadline(ctx, r.deadline)
+		defer cancelDeadline()
+	}
 	command := exec.CommandContext(ctx, "git", append([]string{"-C", r.Root}, args...)...)
 	var stdout, stderr bytes.Buffer
 	command.Stdout = &stdout

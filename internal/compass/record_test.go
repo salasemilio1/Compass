@@ -95,8 +95,8 @@ func TestRecordRefusesBadRequestsWithoutWriting(t *testing.T) {
 func TestSlugify(t *testing.T) {
 	for in, want := range map[string]string{
 		"Use Go: one static binary, shipped as a plugin": "use-go-one-static-binary-shipped",
-		"  Ünïcode & symbols!! ":                          "n-code-symbols",
-		"":                                                "",
+		"  Ünïcode & symbols!! ":                         "n-code-symbols",
+		"":                                               "",
 	} {
 		if got := Slugify(in); got != want {
 			t.Errorf("Slugify(%q) = %q, want %q", in, got, want)

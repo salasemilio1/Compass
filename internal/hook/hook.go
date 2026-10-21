@@ -10,9 +10,22 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/salasemilio1/Compass/internal/compass"
 )
+
+// gitBudget bounds all of one hook's git calls together, inside the 10 s timeout hooks.json gives
+// Claude Code; past it the brief degrades (git sections empty) instead of being killed.
+const gitBudget = 6 * time.Second
+
+func findRepo(cwd string) (*compass.Repo, error) {
+	repo, err := compass.Find(cwd)
+	if err == nil {
+		repo.SetDeadline(time.Now().Add(gitBudget))
+	}
+	return repo, err
+}
 
 // SessionStartMaxChars keeps the brief under Claude Code's 10,000-character cap on SessionStart
 // context; past it the model sees only a 2,000-character preview.
@@ -52,7 +65,7 @@ type output struct {
 // SessionStart injects the resume brief. pluginRoot, when set, is used to name the right binary
 // if a Python compass-cli shadows it on PATH.
 func SessionStart(input Input, pathList, pluginRoot string) ([]byte, error) {
-	repo, err := compass.Find(input.Cwd)
+	repo, err := findRepo(input.Cwd)
 	if err != nil {
 		return nil, nil
 	}
@@ -78,7 +91,7 @@ func SessionStart(input Input, pathList, pluginRoot string) ([]byte, error) {
 
 // staleness returns a non-empty reason when commits changed code after current-state was written.
 func staleness(cwd string) string {
-	repo, err := compass.Find(cwd)
+	repo, err := findRepo(cwd)
 	if err != nil {
 		return ""
 	}

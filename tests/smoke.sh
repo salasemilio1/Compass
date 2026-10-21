@@ -81,7 +81,7 @@ mkdir "$work/pybin"
 printf '#!/usr/bin/python3\nimport sys; sys.exit(2)\n' > "$work/pybin/compass"
 chmod +x "$work/pybin/compass"
 PATH="$work/pybin:$PATH" git commit -q --allow-empty -m "with python shadow" 2> "$work/shadow.err" || fail "the Python shadow blocked a commit"
-grep -q "not first on PATH" "$work/shadow.err" || fail "no shadow warning: $(cat "$work/shadow.err")"
+grep -q "no Go compass on PATH" "$work/shadow.err" || fail "no shadow warning: $(cat "$work/shadow.err")"
 if PATH="$work/pybin:$PATH" "$repo_root/plugin/bin/compass" doctor > "$work/doctor.out"; then fail "doctor passed with a shadow"; fi
 grep -q "uv tool uninstall compass-cli" "$work/doctor.out" || fail "doctor output: $(cat "$work/doctor.out")"
 pass "a shadowing Python compass-cli: commits proceed, doctor flags it"

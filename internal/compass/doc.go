@@ -37,6 +37,9 @@ type Doc struct {
 	Lines  int
 	// SupersededBy is derived from other docs' Supersedes lists, never read from the file.
 	SupersededBy []string
+	// LegacySupersedes means Supersedes came from a v2 body line, where a 4-digit number may be a
+	// year in prose; a target that doesn't resolve is then ignored rather than reported.
+	LegacySupersedes bool
 }
 
 // Live reports whether no other record supersedes this one.
@@ -125,6 +128,7 @@ func ParseDoc(compassDir, path string) (*Doc, error) {
 				// Prose follows the legacy line ("Supersedes: 0006 (the install half)", "none"),
 				// so only decision numbers are taken from it.
 				doc.Supersedes = append(doc.Supersedes, legacyNumber.FindAllString(m[1], -1)...)
+				doc.LegacySupersedes = true
 			}
 		}
 	}
@@ -197,6 +201,8 @@ func parseFrontmatter(front string) (map[string][]string, error) {
 		fields[key] = []string{}
 		switch {
 		case value == "":
+		case value == ">" || value == "|" || strings.HasPrefix(value, ">-") || strings.HasPrefix(value, "|-"):
+			return nil, fmt.Errorf("frontmatter line %d: block scalars (%s) are not supported; write the value on one line", number+1, value)
 		case strings.HasPrefix(value, "[") && strings.HasSuffix(value, "]"):
 			fields[key] = splitList(value[1 : len(value)-1])
 		default:
@@ -250,16 +256,19 @@ func formatValue(value string) string {
 }
 
 // LoadDocs parses every record under the record categories and derives SupersededBy. It skips
-// context/current-state.md and archive.md files, which are not records.
-func LoadDocs(compassDir string) ([]*Doc, error) {
+// context/current-state.md and archive.md files, which are not records. A record that doesn't
+// parse is reported as a finding and left out, so one bad file never hides the rest; only an
+// unreadable directory is an error.
+func LoadDocs(compassDir string) ([]*Doc, []Finding, error) {
 	var docs []*Doc
+	var problems []Finding
 	for _, category := range RecordCategories {
 		entries, err := os.ReadDir(filepath.Join(compassDir, category))
 		if os.IsNotExist(err) {
 			continue
 		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for _, entry := range entries {
 			name := entry.Name()
@@ -272,7 +281,9 @@ func LoadDocs(compassDir string) ([]*Doc, error) {
 			}
 			doc, err := ParseDoc(compassDir, path)
 			if err != nil {
-				return nil, err
+				problems = append(problems, Finding{Severity: SeverityError, Code: "record-unparseable",
+					Path: ".compass/" + path, Message: strings.TrimPrefix(err.Error(), path+": ")})
+				continue
 			}
 			docs = append(docs, doc)
 		}
@@ -285,7 +296,7 @@ func LoadDocs(compassDir string) ([]*Doc, error) {
 			}
 		}
 	}
-	return docs, nil
+	return docs, problems, nil
 }
 
 // Resolve finds the record a supersedes: entry names: an ID ("0006-copy-not-symlink"), a

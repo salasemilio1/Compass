@@ -98,8 +98,8 @@ type Freshness struct {
 	// Known is false when no base could be established (no git, unresolvable anchor and the file
 	// never committed).
 	Known bool
-	// AnchorResolves is false when the anchor is not in this repository's history, which is what
-	// a squash merge or rebase does to a branch commit.
+	// AnchorResolves is false when the anchor is not in HEAD's history, which is what a squash
+	// merge or rebase does to a branch commit.
 	AnchorResolves bool
 }
 
@@ -110,7 +110,9 @@ func (r *Repo) Freshness(state *CurrentState) Freshness {
 		return result
 	}
 	since := ""
-	if state.AnchorWellFormed() && r.CommitExists(state.Anchor) {
+	// An anchor left unreachable by a squash merge or rebase still exists as an object, so
+	// existence isn't enough: it must be in HEAD's history to measure from.
+	if state.AnchorWellFormed() && r.CommitExists(state.Anchor) && r.isAncestor(state.Anchor, "HEAD") {
 		result.AnchorResolves = true
 		since = state.Anchor
 	}

@@ -26,16 +26,18 @@ type Brief struct {
 	Status       []string `json:"status,omitempty"`
 	DiffStat     []string `json:"diff_stat,omitempty"`
 	Records      int      `json:"records"`
+	Unparseable  int      `json:"unparseable_records,omitempty"`
 }
 
 // Resume gathers the brief. Git sections are empty outside a git repository.
 func Resume(repo *Repo) (*Brief, error) {
 	brief := &Brief{Project: repo.Name()}
-	docs, err := LoadDocs(repo.Dir)
+	docs, problems, err := LoadDocs(repo.Dir)
 	if err != nil {
 		return nil, err
 	}
 	brief.Records = len(docs)
+	brief.Unparseable = len(problems)
 	var global []*Doc
 	for _, doc := range docs {
 		if doc.Live() && doc.Global() {
@@ -145,6 +147,9 @@ func (b *Brief) Text(maxChars int) string {
 		}
 	}
 	fmt.Fprintf(&tail, "\nMap of all %d records: .compass/INDEX.md\n", b.Records)
+	if b.Unparseable > 0 {
+		fmt.Fprintf(&tail, "%d record(s) don't parse and were skipped: run `compass check`\n", b.Unparseable)
+	}
 
 	state := b.CurrentState
 	if state == "" {

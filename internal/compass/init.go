@@ -3,6 +3,7 @@ package compass
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -33,15 +34,24 @@ Commit: %s
 1. <the next concrete action>
 `
 
-// gitPreCommit runs compass only when the compass on PATH is this Go binary: an older Python
-// compass-cli first on PATH would otherwise fail every commit with "no such command".
+// gitPreCommit uses the Go compass on PATH, else the Claude Code plugin's copy, so a plugin-only
+// install is still checked. An older Python compass-cli first on PATH would fail every commit with
+// "no such command", hence the version probe.
 const gitPreCommit = `#!/bin/sh
-# Installed by ` + "`compass init`" + `: regenerates .compass/INDEX.md and runs ` + "`compass check`" + `.
-if ! compass version 2>/dev/null | grep -q '(format 3)'; then
-  echo "compass: the Go compass binary is not first on PATH; skipping .compass/ checks (see: compass doctor)" >&2
+# Installed by ` + "`compass init`" + `: regenerates .compass/INDEX.md and runs ` + "`compass check`" + ` on what is staged.
+compass=
+if compass version 2>/dev/null | grep -q '(format 3)'; then
+  compass=compass
+else
+  for candidate in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/cache/compass/compass/*/bin/compass; do
+    [ -x "$candidate" ] && [ ! -e "${candidate%/bin/compass}/.orphaned_at" ] && compass=$candidate
+  done
+fi
+if [ -z "$compass" ]; then
+  echo "compass: no Go compass on PATH or in the Claude Code plugin; skipping .compass/ checks (see: compass doctor)" >&2
   exit 0
 fi
-exec compass hook pre-commit
+exec "$compass" hook pre-commit
 `
 
 // InitOptions configures `compass init`.
@@ -159,20 +169,47 @@ func ensureLine(path, line string) (bool, error) {
 	return true, writeFileAtomic(path, []byte(text+line+"\n"))
 }
 
-// PreCommit is the git pre-commit step: regenerate INDEX.md, stage it when .compass/ is tracked,
-// then check. It returns the findings; the caller fails the commit on errors.
+// PreCommit is the git pre-commit step. It checks .compass/ as staged, not as in the working
+// tree, so an unstaged fix can't hide a broken staged record and an untracked record can't land in
+// the index: it exports the staged files, regenerates INDEX.md from them, stages that, and checks
+// the export. A gitignored .compass/ (branch-local mode) is checked in the working tree instead.
+// It returns the findings; the caller fails the commit on errors.
 func PreCommit(repo *Repo) ([]Finding, error) {
-	changed, err := WriteIndex(repo)
+	index := ".compass/" + IndexPath
+	if _, err := repo.Git("check-ignore", "-q", index); err == nil {
+		if _, err := WriteIndex(repo); err != nil {
+			return nil, err
+		}
+		return Check(repo, CheckOptions{})
+	}
+	files, err := repo.Git("ls-files", "-z", "--cached", "--", ".compass")
+	if err != nil || strings.Trim(files, "\x00") == "" {
+		return nil, err
+	}
+	export, err := os.MkdirTemp("", "compass-staged-")
 	if err != nil {
 		return nil, err
 	}
-	if changed {
-		index := ".compass/" + IndexPath
-		if _, ignored := repo.Git("check-ignore", "-q", index); ignored != nil {
-			if _, err := repo.Git("add", "--", index); err != nil {
-				return nil, err
-			}
+	defer os.RemoveAll(export)
+	command := exec.Command("git", "-C", repo.Root, "checkout-index", "--stdin", "-z", "--prefix="+export+string(filepath.Separator))
+	command.Stdin = strings.NewReader(files)
+	if out, err := command.CombinedOutput(); err != nil {
+		return nil, &GitError{Args: []string{"checkout-index"}, Stderr: string(out), Err: err}
+	}
+	staged := &Repo{Root: repo.Root, Dir: filepath.Join(export, ".compass"), gitTimeout: repo.gitTimeout, deadline: repo.deadline}
+	if changed, err := WriteIndex(staged); err != nil {
+		return nil, err
+	} else if changed {
+		data, err := os.ReadFile(filepath.Join(staged.Dir, IndexPath))
+		if err != nil {
+			return nil, err
+		}
+		if err := writeFileAtomic(filepath.Join(repo.Dir, IndexPath), data); err != nil {
+			return nil, err
+		}
+		if _, err := repo.Git("add", "--", index); err != nil {
+			return nil, err
 		}
 	}
-	return Check(repo, CheckOptions{})
+	return Check(staged, CheckOptions{})
 }

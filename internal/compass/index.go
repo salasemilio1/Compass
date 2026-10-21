@@ -24,12 +24,12 @@ const (
 // EstimateTokens is the bytes/4 heuristic every cap in compass uses.
 func EstimateTokens(text string) int { return (len(text) + 3) / 4 }
 
-// GenerateIndex renders INDEX.md from the records. The output depends only on the files, never on
-// the clock, so `compass check` can compare it byte for byte.
+// GenerateIndex renders INDEX.md from the records. The output depends only on the records, never
+// on the clock or the checkout's directory name, so `compass check` can compare it byte for byte
+// in any clone or worktree.
 func GenerateIndex(repo *Repo, docs []*Doc) (string, error) {
-	var global []*Doc
+	var global, superseded []*Doc
 	byCategory := map[string][]*Doc{}
-	var superseded []*Doc
 	for _, doc := range docs {
 		switch {
 		case !doc.Live():
@@ -41,66 +41,64 @@ func GenerateIndex(repo *Repo, docs []*Doc) (string, error) {
 		}
 	}
 	sortNewestFirst(global)
-	for _, list := range byCategory {
-		sortNewestFirst(list)
+	type section struct {
+		title, more string
+		docs        []*Doc
+		shown       int
+	}
+	sections := []*section{{title: "global (delivered by `compass resume`)", more: "`rg -l '^scope: global' .compass/`", docs: global}}
+	for _, category := range RecordCategories {
+		sortNewestFirst(byCategory[category])
+		sections = append(sections, &section{title: category, more: "`ls .compass/" + category + "/`", docs: byCategory[category]})
 	}
 
-	var head strings.Builder
-	head.WriteString(indexHeader)
-	fmt.Fprintf(&head, "# compass index — %s\n\n", repo.Name())
-	head.WriteString("Start with `compass resume`: current-state, live global claims, uncommitted work.\n")
-	head.WriteString("Records below are live; search all of .compass/ with `rg -i <term> .compass/`.\n")
-
+	head := indexHeader + "# compass index\n\n" +
+		"Start with `compass resume`: current-state, live global claims, uncommitted work.\n" +
+		"Records below are live; search all of .compass/ with `rg -i <term> .compass/`.\n"
 	tail, err := indexTail(repo, superseded)
 	if err != nil {
 		return "", err
 	}
-	budget := IndexMaxTokens*4 - head.Len() - len(tail)
-
-	var body strings.Builder
-	sections := []struct {
-		title string
-		docs  []*Doc
-		dir   string
-	}{{"global (delivered by `compass resume`)", global, ""}}
-	for _, category := range RecordCategories {
-		sections = append(sections, struct {
-			title string
-			docs  []*Doc
-			dir   string
-		}{category, byCategory[category], category})
+	overflow := func(s *section) string {
+		return fmt.Sprintf("- … %d more, not listed to stay under the index cap: %s\n", len(s.docs)-s.shown, s.more)
 	}
-	for _, section := range sections {
-		if len(section.docs) == 0 {
-			continue
+	// Every non-empty section is guaranteed its heading and an overflow line, so no category can
+	// vanish from the map; entries fill what is left, in section order.
+	budget := IndexMaxTokens*4 - len(head) - len(tail)
+	for _, s := range sections {
+		if len(s.docs) > 0 {
+			budget -= len("\n## "+s.title+"\n") + len(overflow(s)) + 4
 		}
-		block := "\n## " + section.title + "\n"
-		shown := 0
-		for _, doc := range section.docs {
+	}
+	for _, s := range sections {
+		for _, doc := range s.docs {
 			line := indexLine(doc)
-			// Leave room for this section's overflow line and the rest of the headers.
-			if body.Len()+len(block)+len(line)+120 > budget {
+			if len(line) > budget {
 				break
 			}
-			block += line
-			shown++
+			budget -= len(line)
+			s.shown++
 		}
-		if hidden := len(section.docs) - shown; hidden > 0 {
-			where := ".compass/" + section.dir
-			if section.dir == "" {
-				where = "`rg -l '^scope: global' .compass/`"
-			} else {
-				where = "`ls " + where + "/`"
-			}
-			block += fmt.Sprintf("- … %d more, not listed to stay under the index cap: %s\n", hidden, where)
-		}
-		if body.Len()+len(block) > budget && shown == 0 {
+	}
+	var body strings.Builder
+	for _, s := range sections {
+		if len(s.docs) == 0 {
 			continue
 		}
-		body.WriteString(block)
+		body.WriteString("\n## " + s.title + "\n")
+		for _, doc := range s.docs[:s.shown] {
+			body.WriteString(indexLine(doc))
+		}
+		if s.shown < len(s.docs) {
+			body.WriteString(overflow(s))
+		}
 	}
-	return head.String() + body.String() + tail, nil
+	return head + body.String() + tail, nil
 }
+
+// indexTailMaxBytes bounds the superseded and other-folders lists, which sit outside the
+// per-entry budget.
+const indexTailMaxBytes = 1600
 
 // indexTail lists superseded records by ID only and counts files in folders that are not v3
 // record categories, so an agent knows they exist without paying for them.
@@ -112,11 +110,7 @@ func indexTail(repo *Repo, superseded []*Doc) (string, error) {
 		for _, doc := range superseded {
 			pairs = append(pairs, doc.ID+" → "+strings.Join(doc.SupersededBy, ", "))
 		}
-		line := strings.Join(pairs, "; ")
-		if len(line) > 1200 {
-			line = truncate(line, 1200)
-		}
-		fmt.Fprintf(&tail, "\n## superseded (%d, not delivered)\n%s\n", len(superseded), line)
+		fmt.Fprintf(&tail, "\n## superseded (%d, not delivered)\n%s\n", len(superseded), truncateBytes(strings.Join(pairs, "; "), indexTailMaxBytes/2))
 	}
 	entries, err := os.ReadDir(repo.Dir)
 	if err != nil {
@@ -141,9 +135,21 @@ func indexTail(repo *Repo, superseded []*Doc) (string, error) {
 		others = append(others, fmt.Sprintf("`%s/` (%d)", entry.Name(), count))
 	}
 	if len(others) > 0 {
-		fmt.Fprintf(&tail, "\n## other folders (not records, not indexed)\n%s\n", strings.Join(others, ", "))
+		fmt.Fprintf(&tail, "\n## other folders (not records, not indexed)\n%s\n", truncateBytes(strings.Join(others, ", "), indexTailMaxBytes/2))
 	}
 	return tail.String(), nil
+}
+
+// truncateBytes cuts text to at most max bytes on a rune boundary, marking the cut.
+func truncateBytes(text string, max int) string {
+	if len(text) <= max {
+		return text
+	}
+	cut := max - len("…")
+	for cut > 0 && !utf8.RuneStart(text[cut]) {
+		cut--
+	}
+	return text[:cut] + "…"
 }
 
 func indexLine(doc *Doc) string {
@@ -176,7 +182,7 @@ func truncate(text string, max int) string {
 
 // WriteIndex regenerates INDEX.md and reports whether its content changed.
 func WriteIndex(repo *Repo) (bool, error) {
-	docs, err := LoadDocs(repo.Dir)
+	docs, _, err := LoadDocs(repo.Dir)
 	if err != nil {
 		return false, err
 	}

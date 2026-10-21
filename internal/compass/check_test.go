@@ -216,7 +216,7 @@ func TestGenerateIndexIsDeterministicAndListsOnlyLiveRecords(t *testing.T) {
 	f.record("experiments/2026-01-02-b.md", "claim: run b")
 	f.record("experiments/2026-03-04-a.md", "claim: run a")
 	f.write(".compass/learnings/x.md", "x\n")
-	docs, err := LoadDocs(f.repo.Dir)
+	docs, _, err := LoadDocs(f.repo.Dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func TestGenerateIndexIsDeterministicAndListsOnlyLiveRecords(t *testing.T) {
 	if first != second {
 		t.Fatal("index output differs between runs")
 	}
-	want := indexHeader + "# compass index — " + f.repo.Name() + `
+	want := indexHeader + `# compass index
 
 Start with ` + "`compass resume`" + `: current-state, live global claims, uncommitted work.
 Records below are live; search all of .compass/ with ` + "`rg -i <term> .compass/`" + `.
@@ -257,7 +257,7 @@ func TestGenerateIndexStaysUnderTheTokenCap(t *testing.T) {
 		f.record(fmt.Sprintf("decisions/%04d-d.md", i), "claim: "+strings.Repeat("word ", 30))
 		f.record(fmt.Sprintf("experiments/2026-01-01-e%03d.md", i), "claim: "+strings.Repeat("word ", 30))
 	}
-	docs, err := LoadDocs(f.repo.Dir)
+	docs, _, err := LoadDocs(f.repo.Dir)
 	if err != nil {
 		t.Fatal(err)
 	}

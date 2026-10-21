@@ -26,3 +26,35 @@ jobs:
 
       - name: Run compass CLI test suite
         run: uv run --project cli --with pytest pytest cli/tests -v
+
+  go:
+    strategy:
+      matrix:
+        # ubuntu runs the linux-amd64 plugin binary, macos the darwin-arm64 one.
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Full history: compass check resolves current-state's Commit: anchor and counts the code
+      # commits after it, which a shallow clone can't.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Unit tests
+        run: make test
+
+      - name: Committed plugin binaries match the source
+        if: matrix.os == 'ubuntu-latest'
+        run: make verify-plugin
+
+      # The shipped binaries, through the launcher, with no Go on PATH.
+      - name: Smoke test
+        run: sh tests/smoke.sh
+
+      # A pull request that changes code must leave current-state current.
+      - name: compass check (this repo)
+        run: plugin/bin/compass check ${{ github.event_name == 'pull_request' && '--require-fresh' || '' }}

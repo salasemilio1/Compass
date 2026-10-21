@@ -73,7 +73,7 @@ func Record(repo *Repo, request RecordRequest) (string, error) {
 	if slug == "" {
 		return "", &RecordError{"cannot derive a filename from the claim; pass --slug"}
 	}
-	docs, err := LoadDocs(repo.Dir)
+	docs, _, err := LoadDocs(repo.Dir)
 	if err != nil {
 		return "", err
 	}
