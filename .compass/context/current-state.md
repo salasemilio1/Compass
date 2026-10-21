@@ -1,39 +1,48 @@
 # current state
 
 Date: 2026-10-21
-Commit: 82ecb32
+Commit: 449dd4f6e91f18ddea385049836e04dd2ac8a1c9
 
-## Where things stand
-The v3 plan is settled and trimmed to a core; no v3 code exists yet. The Go implementation runs in
-its own session on branch `go-rewrite`.
-- [positioning.md](positioning.md): the goal (disposable sessions, cross-agent resume), the
-  staleness rule (nothing maintained in place; expiry by event, not age), and **the core**: format,
-  `compass check`, `compass index`, `compass record`, `compass resume`, the `AGENTS.md` block, and
-  Claude Code hooks as an accelerator.
-- [delivery-plan.md](delivery-plan.md): decision delivery (file/symbol, prompt and caller
-  triggers), **gated** on a four-arm trigger eval with design and held-out incident sets.
-- [decisions/0010](../decisions/0010-go-binary-as-claude-code-plugin.md): one Go binary, shipped as
-  a plugin and through GitHub releases / `go install`; MCP deferred.
-- [decisions/0011](../decisions/0011-dedup-by-index-judge-not-embeddings.md): conditional on
-  learnings surviving as a category.
-- [v3-direction.md](v3-direction.md): superseded except §1 (portability).
+## Objective
+Ship the compass v3 core (positioning.md, "The core"; decision 0010) as one Go binary, and decide
+from the eval what comes next. The core is built and evaluated on branch
+`claude/go-rewrite-74db42`; it is not pushed, released or merged.
 
-The v2 tools (`install.sh`, `scripts/compass-check.sh`, `tools/`, the Python `cli/`) still work
-and stay until their Go replacements land.
+## Just done
+- Go core: `check`, `index`, `record`, `resume`, `init`, `doctor`, hook handlers; unit tests,
+  a smoke test of the shipped binaries (macOS arm64, Linux arm64/amd64 in Docker, no Go on PATH).
+- Plugin in `plugin/` with committed, byte-reproducible binaries (decision 0013); CI and release
+  workflows written, **never run** (nothing pushed).
+- Live: SessionStart reached the model; Stop blocked once and the agent rewrote current-state;
+  install/uninstall left Claude Code's registries byte-identical; Codex used AGENTS.md alone.
+- Eval (experiments/2026-10-21-v3-core-eval.md): brief 93% smaller than v2's front door; no
+  discovery reduction on specified code-local tasks; Claude-to-Codex handoff carried the task but
+  wasn't cheaper than re-pasting the prompt.
+- This repo's `.compass/` migrated to v3 (claims, generated INDEX, v3 AGENTS.md block).
 
-## Known issues / things to remember
-- The dedup experiment lives on branch `claude/dedup-experiment-436ce8` (`ded4590`), **not merged**.
-- **On migration, uninstall the Python `compass-cli`.** It sits earlier on `PATH` and shadows the
-  Go `compass`.
-- ebay-flipper is `~/Dev/Misc/personal-dashboard`; evals use a **copy** of its `.compass/`, never
-  the original.
-- Session economics (token nudges, hard ceiling, stats) moved out of compass to
-  `tools/session-context/`.
+## Files in play
+- `internal/compass/` — the core (the only code that touches .compass/)
+- `internal/hook/hook.go` — Claude Code hook adapters
+- `plugin/` — what the marketplace installs
+- `Makefile` — test, plugin, verify-plugin, dist
+- `.github/workflows/ci.yml` — the go job (unverified until pushed)
+- `.compass/experiments/2026-10-21-v3-core-eval.md` — the evidence
 
 ## Next steps
-1. **Go core** (session on `go-rewrite`): scaffold, `check`, `index`, `record`, `resume`, `init`,
-   `doctor`, plugin hooks, release pipeline (releases, `go install`, plugin binaries), tests.
-2. **Evaluate the core:** resume cost and discovery overhead on a copy of ebay-flipper's `.compass/`,
-   plus synthetic agent sessions, including a mid-task handoff between two agents.
-3. Decide whether to merge the dedup-experiment branch into `main`.
-4. Only after the core ships: build the trigger eval from delivery-plan.md.
+1. **Emilio:** review, then push the branch and open a PR; watch CI's first run (verify-plugin on
+   Linux, smoke on ubuntu and macos, `check --require-fresh`).
+2. Tag `v0.3.0` after merge, so `go install ...@latest` and the release archives exist; test both.
+3. **Emilio:** `uv tool uninstall compass-cli` on this Mac (it shadows the Go binary), then retire
+   `install.sh`, `scripts/`, `cli/` and the v2 skills/hooks from `~/.claude`.
+4. Decide on the brief from the eval: it costs ~3.1k tokens a session and went unused on specified
+   tasks; options are keeping it, injecting it only on `resume`/`compact`, or only when work is
+   uncommitted. Test on unspecified "continue" tasks before choosing.
+5. Mid-task cuts don't refresh current-state (no agent followed "before a long step"); only
+   git status/diff carried the work. Decide whether that is enough.
+6. Merge or drop the dedup-experiment branch (`claude/dedup-experiment-436ce8`); delivery stays gated.
+
+## Known issues
+- Decision 0010 claims `stats`, `--json` on every command, and CI-built binaries; the core has no
+  `stats`, `init`/`index` have no `--json`, and binaries are built locally and verified by CI.
+- `context/overview.md` (v2, hand-maintained) predates the Go layout: `layout-drift` warns.
+- v2's pre-commit hook in the main checkout still runs `scripts/compass-check.sh`.
