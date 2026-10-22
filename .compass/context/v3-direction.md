@@ -95,7 +95,7 @@ maintained in place) applies to every option here.
 - **Cap `current-state.md`** (e.g. 80 lines); stale next-steps move to a backlog doc.
 
 ## 4. Session economics: make short sessions the default, not a discipline
-> Superseded: session policy, moved out of compass to a separate tool (`tools/session-context/`).
+> Superseded: session policy, moved out of compass to a separate tool.
 
 **Why sessions reached 1M (Emilio, 2026-10-15).** Wrap-up was not part of the PR process. A session
 would take a problem through the work loop, open a PR, then start the next problem in the same

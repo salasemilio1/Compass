@@ -130,7 +130,6 @@ func Check(repo *Repo, options CheckOptions) ([]Finding, error) {
 	findings = append(findings, checkSupersessionCycles(docs)...)
 	findings = append(findings, checkCurrentState(repo, options, git)...)
 	findings = append(findings, checkAgentsBlock(repo)...)
-	findings = append(findings, checkRepoLayout(repo, git)...)
 
 	sort.SliceStable(findings, func(i, j int) bool {
 		if findings[i].Severity != findings[j].Severity {
@@ -285,37 +284,6 @@ func checkCurrentState(repo *Repo, options CheckOptions, git bool) []Finding {
 			Message: fmt.Sprintf("%d commit(s) changed code since current-state was written (%s); rewrite it", freshness.CodeCommits, short(freshness.Since))})
 	}
 	return findings
-}
-
-// checkRepoLayout (F) warns when context/overview.md doesn't mention a top-level tracked folder.
-// Detection only: the fix is a content edit.
-func checkRepoLayout(repo *Repo, git bool) []Finding {
-	overview, err := os.ReadFile(filepath.Join(repo.Dir, "context", "overview.md"))
-	if err != nil || !git {
-		return nil
-	}
-	out, err := repo.Git("ls-files")
-	if err != nil {
-		return nil
-	}
-	seen := map[string]bool{}
-	var missing []string
-	for _, file := range strings.Split(out, "\n") {
-		top, _, nested := strings.Cut(file, "/")
-		if !nested || seen[top] || strings.HasPrefix(top, ".") {
-			continue
-		}
-		seen[top] = true
-		if !strings.Contains(string(overview), "`"+top+"/") {
-			missing = append(missing, top)
-		}
-	}
-	if len(missing) == 0 {
-		return nil
-	}
-	sort.Strings(missing)
-	return []Finding{{Severity: SeverityWarn, Code: "layout-drift", Path: ".compass/context/overview.md",
-		Message: "repo layout doesn't mention: " + strings.Join(missing, ", ")}}
 }
 
 func short(hash string) string {

@@ -230,20 +230,14 @@ func TestFreshness(t *testing.T) {
 	}
 }
 
-func TestCheckWarnsOnAgentsBlockAndLayoutDrift(t *testing.T) {
+func TestCheckWarnsOnAgentsBlockDrift(t *testing.T) {
 	f := newFixture(t)
-	f.write("cmd/x.go", "package x\n")
-	f.write("docs/a.md", "a\n")
-	f.write(".compass/context/overview.md", "---\nclaim: overview\n---\n`cmd/` holds commands\n")
 	f.state(f.commit("init"))
 	f.clean()
 	f.write("AGENTS.md", "<!-- compass-spec-version: 2 -->\n# old\n")
 	got := f.check(CheckOptions{})
-	if strings.Join(codes(got), ",") != "warn:layout-drift,warn:agents-block-drift" {
+	if strings.Join(codes(got), ",") != "warn:agents-block-drift" {
 		t.Fatalf("got %v", got)
-	}
-	if !strings.Contains(got[0].Message, "docs") || strings.Contains(got[0].Message, "cmd") {
-		t.Errorf("layout message: %s", got[0].Message)
 	}
 }
 

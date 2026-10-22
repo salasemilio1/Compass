@@ -1,8 +1,6 @@
 .DS_Store
 graphify-out/
 .compass/scratch/
-.compass/**/.embedding-cache.json
-__pycache__/
 /bin/
 /dist/
 /.verify/

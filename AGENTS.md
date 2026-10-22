@@ -1,14 +1,5 @@
 # Agent instructions
 
-[graphify](https://github.com/safishamsi/graphify) is an optional, opt-in structural navigation layer
-(not installed by default — see README.md). If `graphify-out/graph.json` happens to exist, prefer
-`graphify query "<question>"` over grepping for "what calls X" / "where does Y live" style questions.
-compass stays the source of curated intent; graphify is read-only reference material, never written or
-modified by compass workflows.
-
-Session-tooling helpers (token-usage reporters, wrap-up nudges) are optional and agent-specific; use
-whatever your environment provides. Nothing in this repo's contract depends on them.
-
 <!-- compass:begin (managed by `compass init`; edits inside are overwritten) -->
 ## Project memory (compass)
 - **Start:** run `compass resume` before anything else. It prints where the work stands

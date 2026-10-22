@@ -5,7 +5,7 @@ claim: "first long-run field data: 90% of cost in main sessions, 78% above 300k 
 
 Date: 2026-10-15
 Source: `~/Dev/Misc/personal-dashboard` (ebay-flipper), `main` at `28e8c3d`, 233 commits, 3 months.
-Method: `tools/usage-retro/retro.py` over 46 main-session and 471 subagent transcripts (2026-07-31
+Method: a transcript-usage script (v2's usage-retro tool, since removed) over 46 main-session and 471 subagent transcripts (2026-07-31
 onward; the repo began 07-13), git history, and two subagent passes: a blind grading of 40
 critique/break reports and a test-quality read. Direction this feeds: [v3-direction.md](v3-direction.md).
 
@@ -106,4 +106,4 @@ another report's summary. That output shape belongs in the critique and break pr
 5. "Inject a clock; never assert on wall time" as a testing rule.
 6. Compass v3 per [v3-direction.md](v3-direction.md): a capped, generated index; a `status` on every
    doc; guards shipped in the CLI.
-7. Re-run `tools/usage-retro/retro.py` at each project milestone and compare against this table.
+7. Re-run a transcript-usage retro at each project milestone and compare against this table.

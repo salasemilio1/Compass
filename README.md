@@ -5,8 +5,8 @@ disposable: a fresh agent (Claude Code, Codex, Cursor, anything that reads `AGEN
 `compass resume` and knows where the work stands, what was decided, and what is uncommitted,
 without a discovery phase. When one agent hits its usage limit, another picks up from there.
 
-compass v3 is one static Go binary. The v2 installer, checker script and Python `compass-cli`
-are gone; see [v2 leftovers](#v2-leftovers) for what remains in the repo.
+compass v3 is one static Go binary. The v2 installer, checker script, Python `compass-cli`,
+skills, hooks and tools are gone.
 
 ## Install (v3)
 
@@ -107,10 +107,3 @@ not rewritten after it.
    the files (a registered hook whose file is gone errors), then delete v2's skills and hooks from
    `~/.claude` and any compass-workflow section in `~/.claude/CLAUDE.md`. Until then the v2
    SessionStart nudge and the plugin's brief both fire.
-
-## v2 leftovers
-
-`skills/` (`init-compass`, `warm-up`, `wrap-up`), `hooks/` and `tools/` are v2 pieces kept in the
-repo, with their tests in `tests/`. Nothing installs them any more and the skills still call the
-removed `scripts/compass-check.sh`, `install.sh` and `cli/`, so `wrap-up` and `init-compass` no
-longer work. The compass commands above replace them.

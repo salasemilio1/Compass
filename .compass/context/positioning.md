@@ -4,8 +4,8 @@ claim: "v3 goal (disposable sessions, cross-agent resume), staleness rule (nothi
 # Compass v3: positioning and core
 
 Date: 2026-10-21
-Status: live, a proposal under review. It feeds decisions 0010 (Go + plugin) and 0011 (dedup,
-conditional). The gated scaling layer is in [delivery-plan.md](delivery-plan.md).
+Status: live, a proposal under review. It fed decisions 0010 (Go + plugin) and 0011 (dedup), both since
+superseded; 0015 cut learnings. The gated scaling layer is in [delivery-plan.md](delivery-plan.md).
 Evidence: [2026-10-15-ebay-flipper-retro.md](2026-10-15-ebay-flipper-retro.md),
 `experiments/2026-10-21-dedup-architectures.md` (branch `claude/dedup-experiment-436ce8`), and the
 plugin hook spike recorded in delivery-plan.md.
@@ -26,7 +26,7 @@ Before agents, project knowledge lived in four layers. Agents keep three of them
 | Code | What the system does | None |
 | Comments | Why *this line* | Enforces it: a rule in compass's managed `AGENTS.md` block, "comment the why", since agents under-comment |
 | Git (commits, PRs, blame) | What changed and when | Points to commits and never restates them, so there is no `logs/` category |
-| `CLAUDE.md` / `AGENTS.md` | Rules every session follows | Promotes learnings into a managed, capped block |
+| `CLAUDE.md` / `AGENTS.md` | Rules every session follows | Writes only its managed block; a learning that is a rule goes here, by hand |
 | Issue tracker | Tasks and backlog | None. current-state holds only "now and next" |
 | **Colleagues** | **Where we are, why, and what matters for what you're about to touch** | **This is compass** |
 
@@ -153,11 +153,9 @@ Code enforces what review used to:
   it (keeping every fact) or splits it, so appends can't grow without bound.
 - **Provenance comes from git, not the agent.** The commit that added a doc is derived from history,
   so it can't be invented. Optional `refs:` are validated when present and never required.
-- **Learnings route out, so there is little to dedup.** A learning becomes a rule, a comment, or part
-  of the decision it affects. If learnings survive as a category, decision 0011's rules apply: merges
-  append and never delete, no bulk consolidation passes (unsupervised consolidation merged distinct
-  lessons 18 of 18 times), and a routing manifest maps every original to an outcome. 0011 is
-  conditional on that category existing; the dedup experiment shrank the corpus only 5%.
+- **Learnings route out, so there is nothing to dedup.** A learning becomes a rule, a comment, or
+  part of the decision it affects; there is no learnings category (decision 0015 cut it, so 0011's
+  dedup is moot; the dedup experiment had shrunk the corpus only 5%).
 
 ## Measures
 compass claims **continuity**, not discovery: a fresh or different agent picks up where the last
@@ -222,7 +220,7 @@ can't answer what holds across commits or where the work is going. That is compa
 ## What compass doesn't do
 Discovery of code (see the scope table), task tracking, code summaries, shrinking tool output (context-mode does that), code-structure maps
 (graphify or an LSP does that), restating git history, and **session policy**: token nudges, hard
-context ceilings and cost stats are a separate tool (today `tools/session-context/`), not memory.
+context ceilings and cost stats belong to a separate tool, not memory.
 
 ## Integrating with ML tooling (future, not designed yet)
 Compass stays the interpretation layer and never becomes a tracker:
@@ -250,8 +248,6 @@ Compass is **portable memory with Claude-Code-first acceleration**:
   verified.
 
 ## Open questions
-- Whether learnings survive as a category at all, or always route out (which decides whether 0011's
-  machinery is ever built).
 - How well `compass resume` alone carries a mid-task handoff between agents; the cross-agent resume
   measure answers it.
 
@@ -289,4 +285,5 @@ All accepted:
 6. **Retrieval options B–E deferred:** a capped generated index plus `rg` until a retrieval eval
    shows need.
 7. **Delivery was ~70% of this doc:** moved to [delivery-plan.md](delivery-plan.md), gated.
-8. **Learnings and dedup may be moot:** 0011 made conditional on learnings surviving as a category.
+8. **Learnings and dedup may be moot:** 0011 made conditional on learnings surviving as a category
+   (they didn't: 0015 cut the category).

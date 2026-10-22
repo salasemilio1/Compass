@@ -1,26 +1,13 @@
 name: CI
 
-# Runs the test suite on every push and every PR, on all branches -- this repo has no
+# Runs the Go test suite on every push and every PR, on all branches -- this repo has no
 # main-only gate yet (see .compass/decisions), so catching regressions early on feature
-# branches like graphify-integration matters more than gating main specifically.
+# branches matters more than gating main specifically.
 on:
   push:
   pull_request:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      # uv provides both the Python runtime and an ephemeral pytest install (--with pytest
-      # below) -- no separate setup-python/pip step needed. Also lets the dedup suite's one
-      # real-model integration test run for real instead of self-skipping (see its docstring).
-      - uses: astral-sh/setup-uv@v3
-
-      - name: Run python test suite
-        run: uv run --with pytest pytest tests/ -v
-
   go:
     strategy:
       matrix:
