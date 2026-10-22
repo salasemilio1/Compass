@@ -14,6 +14,7 @@ Records below are live; search all of .compass/ with `rg -i <term> .compass/`.
 - [0012-staleness-is-code-commits-after-current-state](decisions/0012-staleness-is-code-commits-after-current-state.md) — current-state is stale when code commits exist after the later of its in-history anchor and its last commit; stale warns locally and fails only CI (--require-fresh)
 
 ## experiments
+- [2026-10-22-codex-core-operations-eval](experiments/2026-10-22-codex-core-operations-eval.md) — Codex eval of compass's core operations (orient, handoff, drift, decision write, decision read) against no-compass arms, after the scope cut
 - [2026-10-21-v3-core-eval](experiments/2026-10-21-v3-core-eval.md) — v3 core eval on an ebay-flipper copy: resume cost, discovery overhead with and without compass, and a Claude-to-Codex mid-task handoff
 
 ## context
