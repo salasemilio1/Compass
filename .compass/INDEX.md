@@ -8,6 +8,7 @@ Records below are live; search all of .compass/ with `rg -i <term> .compass/`.
 - [2026-10-21-disposable-sessions](goals/2026-10-21-disposable-sessions.md) — Disposable sessions: any agent, Claude or not, resumes the work without a discovery phase
 
 ## decisions
+- [0019-search-the-records-before-changing-behaviour](decisions/0019-search-the-records-before-changing-behaviour.md) — The AGENTS.md block tells agents to search the records with rg before changing behaviour; no search command is built
 - [0018-one-choice-per-record](decisions/0018-one-choice-per-record.md) — One choice per record, its claim naming it; supersede only when the old claim is untrue, and record says what it retires
 - [0017-narrow-decision-recording](decisions/0017-narrow-decision-recording.md) — Record a decision only for real alternatives a later agent could undo, with its why; an empty-bodied record warns
 - [0016-current-state-is-last-known-intent](decisions/0016-current-state-is-last-known-intent.md) — current-state is last known intent: objective and next steps only, never a plan; git and the user's current prompt win over it

@@ -285,6 +285,15 @@ func TestAgentsBlockSaysGitAndThePromptWin(t *testing.T) {
 	}
 }
 
+// The retrieval-at-scale eval tested this line word for word (honour 3/9 -> 9/9 on buried
+// decisions); a rewording is a new, untested instruction.
+func TestAgentsBlockTellsAgentsToSearchTheRecordsBeforeChangingBehaviour(t *testing.T) {
+	want := "- **Before changing behaviour,** search the records: `rg -il <words> .compass/` lists the files that mention the words.\n"
+	if !strings.Contains(AgentsBlock, want) {
+		t.Errorf("AgentsBlock lacks the tested search line %q", want)
+	}
+}
+
 func TestAgentsBlockNarrowsWhenToRecordADecision(t *testing.T) {
 	for _, want := range []string{
 		"One choice per record, and its claim names that choice.",

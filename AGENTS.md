@@ -5,6 +5,7 @@
 - **Start:** run `compass resume` before anything else. It prints where the work stands
   (`.compass/context/current-state.md`), the live project-wide decisions, and uncommitted work.
   Don't rediscover what it already tells you; `.compass/INDEX.md` maps the rest.
+- **Before changing behaviour,** search the records: `rg -il <words> .compass/` lists the files that mention the words.
 - **Rewrite current-state** (whole, never patched, at most 80 lines) after a commit, before a long
   step, and before you stop. It is last known intent: the objective and the next step(s), never a
   plan (a plan lives with the task: a PR, an issue, a scratch file). Set its `Commit:` line to
