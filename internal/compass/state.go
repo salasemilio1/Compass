@@ -145,6 +145,9 @@ type Freshness struct {
 	// Known is false when no base could be established (no git, unresolvable anchor and the file
 	// never committed).
 	Known bool
+	// StateDirty is true when current-state.md has uncommitted changes, so its last commit can't
+	// stand in for an anchor outside HEAD's history.
+	StateDirty bool
 	// AnchorResolves is false when the anchor is not in HEAD's history, which is what a squash
 	// merge or rebase does to a branch commit.
 	AnchorResolves bool
@@ -159,12 +162,13 @@ func (r *Repo) Freshness(state *CurrentState) Freshness {
 	since := ""
 	// An anchor left unreachable by a squash merge or rebase still exists as an object, so
 	// existence isn't enough: it must be in HEAD's history to measure from.
-	if state.AnchorWellFormed() && r.CommitExists(state.Anchor) && r.isAncestor(state.Anchor, "HEAD") {
+	if state.AnchorWellFormed() && r.LookupCommit(state.Anchor) == CommitFound && r.isAncestor(state.Anchor, "HEAD") {
 		result.AnchorResolves = true
 		since = state.Anchor
 	}
 	statePath := ".compass/" + CurrentStatePath
 	dirty, _ := r.Git("status", "--porcelain", "--", statePath)
+	result.StateDirty = dirty != ""
 	if dirty == "" {
 		if last, err := r.Git("log", "-1", "--format=%H", "--", statePath); err == nil && last != "" {
 			if since == "" || r.isAncestor(since, last) {

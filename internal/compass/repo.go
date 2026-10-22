@@ -111,6 +111,8 @@ func (r *Repo) Git(args ...string) (string, error) {
 		defer cancelDeadline()
 	}
 	command := exec.CommandContext(ctx, "git", append([]string{"-C", r.Root}, args...)...)
+	// English messages: LookupCommit tells an ambiguous hash from a missing one by git's stderr.
+	command.Env = append(os.Environ(), "LC_ALL=C")
 	var stdout, stderr bytes.Buffer
 	command.Stdout = &stdout
 	command.Stderr = &stderr
@@ -130,6 +132,36 @@ func (r *Repo) IsGit() bool {
 func (r *Repo) CommitExists(ref string) bool {
 	_, err := r.Git("cat-file", "-e", ref+"^{commit}")
 	return err == nil
+}
+
+// CommitLookup is what git says about a hash compass was given.
+type CommitLookup int
+
+const (
+	// CommitFound means the hash names exactly one commit.
+	CommitFound CommitLookup = iota
+	// CommitAmbiguous means a short hash matches several commits: real, but unusable as given.
+	CommitAmbiguous
+	// CommitMissing means no commit matches in a full clone: an invented or foreign hash.
+	CommitMissing
+	// CommitMissingShallow means no commit matches, but this is a shallow clone that may lack it.
+	CommitMissingShallow
+)
+
+// LookupCommit resolves hash, separating the ways it can fail to name a commit.
+func (r *Repo) LookupCommit(hash string) CommitLookup {
+	_, err := r.Git("rev-parse", "--verify", hash+"^{commit}")
+	if err == nil {
+		return CommitFound
+	}
+	var gitErr *GitError
+	if errors.As(err, &gitErr) && strings.Contains(gitErr.Stderr, "is ambiguous") {
+		return CommitAmbiguous
+	}
+	if shallow, _ := r.Git("rev-parse", "--is-shallow-repository"); shallow == "true" {
+		return CommitMissingShallow
+	}
+	return CommitMissing
 }
 
 // Head returns the full hash of HEAD, or "" in a repository with no commits.

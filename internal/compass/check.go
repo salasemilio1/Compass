@@ -242,10 +242,39 @@ func checkCurrentState(repo *Repo, options CheckOptions, git bool) []Finding {
 		return findings
 	}
 	freshness := repo.Freshness(state)
+	// A real commit outside HEAD's history is a rebase or squash merge: routine when the fallback
+	// measures freshness, so it warns only when freshness is unknown.
 	if !freshness.AnchorResolves {
-		findings = append(findings, Finding{Severity: SeverityWarn, Code: "anchor-unresolved", Path: path,
-			Message: fmt.Sprintf("Commit: %s is not in HEAD's history (squash merge or rebase, or an invented hash: set it to `git rev-parse HEAD`); freshness is measured from the last commit that changed current-state.md", state.Anchor),
-			Fixable: !repo.CommitExists(state.Anchor)})
+		problem, fixable := "", false
+		switch repo.LookupCommit(state.Anchor) {
+		case CommitMissing:
+			problem, fixable = "names no commit (an invented hash: set it to `git rev-parse HEAD`)", true
+		case CommitMissingShallow:
+			problem = "is not in this shallow clone (fetch the full history: `git fetch --unshallow`)"
+		case CommitAmbiguous:
+			problem = "matches several commits (write the full hash)"
+		default:
+			if !freshness.Known {
+				problem = "is not in HEAD's history (squash merge or rebase)"
+			}
+		}
+		if problem != "" {
+			message := fmt.Sprintf("Commit: %s %s", state.Anchor, problem)
+			severity := SeverityWarn
+			switch {
+			case freshness.Known:
+				message += fmt.Sprintf("; freshness is measured from the last commit that changed current-state.md (%s)", short(freshness.Since))
+			case freshness.StateDirty:
+				message += "; current-state.md has uncommitted changes, so its last commit can't stand in: freshness is unknown"
+			default:
+				message += "; no commit of current-state.md can stand in: freshness is unknown"
+			}
+			if !freshness.Known && options.RequireFresh {
+				severity = SeverityError
+			}
+			findings = append(findings, Finding{Severity: severity, Code: "anchor-unresolved", Path: path,
+				Message: message, Fixable: fixable})
+		}
 	}
 	if freshness.Known && freshness.CodeCommits > 0 {
 		severity := SeverityWarn
@@ -298,7 +327,8 @@ func short(hash string) string {
 
 // Fix repairs what is mechanical: it regenerates INDEX.md and stamps HEAD into an anchor that is
 // missing, malformed, or names no commit at all (agents have been seen inventing hashes). It never
-// restamps a real but stale anchor: that would claim current-state was rewritten.
+// restamps a real but stale anchor: that would claim current-state was rewritten. An ambiguous
+// short hash, or one a shallow clone may simply lack, is left alone for the same reason.
 // It returns one line per change made.
 func Fix(repo *Repo) ([]string, error) {
 	var changes []string
@@ -313,7 +343,7 @@ func Fix(repo *Repo) ([]string, error) {
 	if err != nil || state == nil {
 		return changes, err
 	}
-	if state.HasAnchor && state.AnchorWellFormed() && (!repo.IsGit() || repo.CommitExists(state.Anchor)) {
+	if state.HasAnchor && state.AnchorWellFormed() && (!repo.IsGit() || repo.LookupCommit(state.Anchor) != CommitMissing) {
 		return changes, nil
 	}
 	head := repo.Head()

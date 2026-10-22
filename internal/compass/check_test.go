@@ -213,7 +213,7 @@ func TestFreshness(t *testing.T) {
 		t.Errorf("code and state in one commit: %+v", got)
 	}
 
-	// An anchor missing from history (squash merge) falls back to the last state commit.
+	// An invented anchor falls back to the last state commit and still warns: it names no commit.
 	f.state("1234567")
 	f.commit("state with a foreign anchor")
 	if got := fresh(); got.AnchorResolves || !got.Known || got.CodeCommits != 0 {

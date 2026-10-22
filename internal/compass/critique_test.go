@@ -3,6 +3,7 @@ package compass
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -32,6 +33,10 @@ func TestFreshnessIgnoresAnAnchorOutsideHeadHistory(t *testing.T) {
 	got := f.repo.Freshness(state)
 	if got.AnchorResolves || !got.Known || got.CodeCommits != 0 {
 		t.Errorf("want unresolved anchor, measured from the squash commit, 0 stale: %+v", got)
+	}
+	// The anchor still names a real commit and the fallback is known: routine, so no warning.
+	if findings := f.check(CheckOptions{}); hasCode(findings, "anchor-unresolved") {
+		t.Errorf("squashed-away anchor warned: %v", codes(findings))
 	}
 }
 
@@ -203,4 +208,149 @@ func TestInitMarksTheIndexForUnionMerges(t *testing.T) {
 	if !strings.Contains(f.read(".gitattributes"), ".compass/INDEX.md merge=union") {
 		t.Error("no merge=union line")
 	}
+}
+
+// A rebase rewrites the anchored commit; the old hash survives in the object store, so no warning.
+func TestCheckIsSilentOnARebasedAnchor(t *testing.T) {
+	f := newFixture(t)
+	f.clean()
+	f.commit("init")
+	f.git("checkout", "-q", "-b", "feature")
+	f.write("feature.go", "package f\n")
+	anchor := f.commit("feature code")
+	f.state(anchor)
+	f.commit("state on the branch")
+	f.git("checkout", "-q", "main")
+	f.write("main.go", "package m\n")
+	f.commit("main code")
+	f.git("checkout", "-q", "feature")
+	f.git("rebase", "-q", "main")
+
+	state, _ := f.repo.ReadCurrentState()
+	if got := f.repo.Freshness(state); got.AnchorResolves || !got.Known {
+		t.Fatalf("want a rebased-away anchor with known fallback freshness: %+v", got)
+	}
+	if findings := f.check(CheckOptions{}); hasCode(findings, "anchor-unresolved") {
+		t.Errorf("rebased anchor warned: %v", codes(findings))
+	}
+}
+
+// A real anchor outside HEAD's history with current-state.md dirty: the fallback is skipped, so
+// freshness is unknown, the message says why, and --require-fresh makes it an error.
+func TestCheckWarnsOnAnOrphanedAnchorWithDirtyState(t *testing.T) {
+	f := newFixture(t)
+	f.clean()
+	f.commit("init")
+	f.git("checkout", "-q", "-b", "feature")
+	anchor := f.commit("feature code")
+	f.git("checkout", "-q", "main")
+	f.state(anchor)
+
+	findings := f.check(CheckOptions{})
+	finding := findingWithCode(t, findings, "anchor-unresolved")
+	if finding.Severity != SeverityWarn || finding.Fixable ||
+		!strings.Contains(finding.Message, "uncommitted changes") || strings.Contains(finding.Message, "no commit of") {
+		t.Errorf("dirty fallback: %+v", finding)
+	}
+	if finding := findingWithCode(t, f.check(CheckOptions{RequireFresh: true}), "anchor-unresolved"); finding.Severity != SeverityError {
+		t.Errorf("unknown freshness under --require-fresh must be an error: %+v", finding)
+	}
+}
+
+// The invented-hash message claims a fallback only when there is one.
+func TestInventedAnchorMessageClaimsFallbackOnlyWhenKnown(t *testing.T) {
+	f := newFixture(t)
+	f.clean()
+	f.commit("init")
+	f.state("caf5e589e5f8a3c8a47b8e8e8e8e8e8e8e8e8e8")
+	finding := findingWithCode(t, f.check(CheckOptions{}), "anchor-unresolved")
+	if !finding.Fixable || !strings.Contains(finding.Message, "names no commit") || strings.Contains(finding.Message, "measured from") {
+		t.Errorf("dirty, so unknown: %+v", finding)
+	}
+	f.commit("state")
+	finding = findingWithCode(t, f.check(CheckOptions{}), "anchor-unresolved")
+	if !strings.Contains(finding.Message, "measured from the last commit") {
+		t.Errorf("committed, so known: %+v", finding)
+	}
+}
+
+// In a shallow clone a real anchor may simply be absent: not invented, not fixable, not restamped.
+func TestShallowCloneLeavesAMissingAnchorAlone(t *testing.T) {
+	source := newFixture(t)
+	source.clean()
+	old := source.commit("init")
+	source.write("a.go", "package a\n")
+	source.commit("code")
+	source.state(old)
+	source.commit("state")
+
+	clone := filepath.Join(t.TempDir(), "clone")
+	source.git("clone", "-q", "--depth", "1", "file://"+source.repo.Root, clone)
+	f := &fixture{t: t, repo: Open(clone)}
+	finding := findingWithCode(t, f.check(CheckOptions{}), "anchor-unresolved")
+	if finding.Fixable || !strings.Contains(finding.Message, "shallow clone") || strings.Contains(finding.Message, "names no commit") {
+		t.Errorf("shallow: %+v", finding)
+	}
+	before := f.read(".compass/context/current-state.md")
+	if _, err := Fix(f.repo); err != nil {
+		t.Fatal(err)
+	}
+	if f.read(".compass/context/current-state.md") != before {
+		t.Error("Fix restamped an anchor the shallow clone lacks")
+	}
+}
+
+// A short hash matching several commits is real: reported as ambiguous and never restamped.
+func TestAmbiguousAnchorIsNotCalledInvented(t *testing.T) {
+	f := newFixture(t)
+	// Enough deterministic commits (fixed author, date and messages) to hold a 7-hex collision.
+	var stream strings.Builder
+	for i := 1; i <= 45179; i++ {
+		message := fmt.Sprint(i)
+		fmt.Fprintf(&stream, "commit refs/heads/bulk\ncommitter t <t@example.com> 1700000000 +0000\ndata %d\n%s\n", len(message), message)
+	}
+	command := exec.Command("git", "-C", f.repo.Root, "fast-import", "--quiet")
+	command.Stdin = strings.NewReader(stream.String())
+	if out, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("fast-import: %v\n%s", err, out)
+	}
+	seen := map[string]bool{}
+	prefix := ""
+	for _, hash := range strings.Fields(f.git("rev-list", "bulk")) {
+		if seen[hash[:7]] {
+			prefix = hash[:7]
+			break
+		}
+		seen[hash[:7]] = true
+	}
+	if prefix == "" {
+		t.Fatal("no 7-hex collision among the bulk commits")
+	}
+
+	f.clean()
+	f.commit("init")
+	f.state(prefix)
+	f.commit("state")
+	finding := findingWithCode(t, f.check(CheckOptions{}), "anchor-unresolved")
+	if finding.Fixable || !strings.Contains(finding.Message, "matches several commits") {
+		t.Errorf("ambiguous: %+v", finding)
+	}
+	before := f.read(".compass/context/current-state.md")
+	if _, err := Fix(f.repo); err != nil {
+		t.Fatal(err)
+	}
+	if f.read(".compass/context/current-state.md") != before {
+		t.Error("Fix overwrote an ambiguous anchor")
+	}
+}
+
+func findingWithCode(t *testing.T, findings []Finding, code string) Finding {
+	t.Helper()
+	for _, finding := range findings {
+		if finding.Code == code {
+			return finding
+		}
+	}
+	t.Fatalf("no %s in %v", code, codes(findings))
+	return Finding{}
 }
