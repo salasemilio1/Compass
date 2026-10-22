@@ -98,3 +98,76 @@ the tax on a 25-cent line at 50%; `invoicer -currency EUR` with and without the 
 Ties pass ("at least as often"). Totals compare medians of uncached tokens.
 
 n = 3 per arm, one model, one synthetic repo: the results bound rather than settle each question.
+
+---
+
+# Results (2026-10-22, after the runs)
+
+39 runs, all exited 0 within the cap (15–145 s), and `go test ./...` passed in every final tree.
+Raw events, rollouts, diffs and probe output stayed in the session scratchpad; the numbers below
+come from `metrics.py` and `probe.sh` there. Isolation held: each run's `CODEX_HOME` had only auth
+and model config, C arms resolved the Go `compass`, N arms had none.
+
+| Arm | Pass | Cmds before first edit | Cmds total | Tokens at first edit | Uncached total | resume first | current-state rewritten | `compass record` |
+|---|---|---|---|---|---|---|---|---|
+| S1-N | 0/3 (asked what to continue) | – | 3 | no edit | 5.3k | – | – | – |
+| S1-S stub | 3/3 | 4 | 12 | 66.7k | 21.5k | 3/3 | 3/3 | 1/3 |
+| S1-F full | 3/3 | 4 | 10 | 51.8k | 16.5k | 2/3 (3/3 ran it anyway) | 3/3 | 1/3 |
+| S2-N | 0/3 (found summary.go, asked) | – | 5 | no edit | 15.3k | – | – | – |
+| S2-T note | 3/3 | 6 | 10 | 49.3k | 15.0k | – | (NOTES.md 3/3) | – |
+| S2-C | 3/3 | 5 | 9 | 67.0k | 18.0k | 3/3 | 3/3 | 0/3 |
+| S3-N | 3/3 | 5 | 8 | 66.3k | 17.9k | – | – | – |
+| S3-C | 3/3 | 7 | 13 | 85.8k | 16.5k | 3/3 | 3/3 | 3/3 |
+| S4-N | (no record possible) | 4 | 7 | 49.3k | 12.2k | – | – | – |
+| S4-C | 2/3 | 9 | 16 | 89.1k | 18.6k | 3/3 | 3/3 | 3/3 |
+| S5-N | 0/3 (all reversed) | 4 | 9 | 48.4k | 15.0k | – | – | – |
+| S5-C local | 3/3 | 7 | 11 | 85.4k | 19.1k | 3/3 | 3/3 | 0/3 |
+| S5-G global | 3/3 | 6 | 11 | 67.0k | 20.2k | 3/3 | 3/3 | 0/3 |
+
+Medians per arm. "Tokens" are cumulative input + output; first edits in C arms are often the
+current-state rewrite, not code.
+
+## Per scenario
+1. **Orient: FAIL (on the token clause only).** Stub and full brief both finished the next step
+   (Summary with a table test, cmd wired) 3/3; the stub passed as often as the full brief. But the
+   stub's median uncached total was 1.30× the full brief's, over the 1.25× bar (spread 13–25k, so
+   within noise at n=3). The full brief saved no call: all three F runs ran `compass resume`
+   anyway. With no compass, all three agents asked what to continue. Grading note: the Summary
+   probe failed every S/F run only on a trailing newline after `Total:`, which the next step never
+   specified; graded pass.
+2. **Handoff: PASS.** C and the plain-note arm T both finished 3/3, kept agent 1's `summary.go`
+   (probe passes), added the test and wired the cmd; C's median commands before the first edit
+   (5) ≤ T's (6). C cost 1.2× T's uncached tokens. Git alone (N) didn't carry the intent: all three
+   found the untracked file and asked. **Compass's handoff value here equals a pointed-to note file**;
+   what it adds is the staleness check and git state in one command.
+3. **Drift: PASS.** C did the prompt's `-currency` work 3/3 (probe: suffixes amounts, unchanged
+   without the flag), redid the stale Summary step 0/3, and rewrote current-state to the new
+   objective 3/3. Uncached 0.92× N's. Wall time was 1.7× N's.
+4. **Decision write: PASS (2/3, at the bar).** All three C runs ran `compass record`
+   unprompted. Two records state the tax-base choice (discount after per-line tax) and why
+   (keeps Ledgerly's per-line tax). The third (S4-C-2) records a claim about float intermediates
+   with an empty skeleton body and never states the tax base. All six runs, both arms, chose after-tax;
+   N runs put it in a code comment and the final message.
+5. **Decision read: PASS.** C 3/3 and G 3/3 kept half-to-even, said it's intended and cited the
+   decision; N 3/3 "fixed" it to half away from zero, the alternative the decision rejected. The
+   local decision was found through `compass resume` → INDEX.md as reliably as the global one
+   was delivered, so this run gives no evidence that decision delivery is needed.
+
+## Other findings
+- **Over-recording.** The "record a decision when it happens" rule fired on choices nobody would
+  reverse: S1 2/6 (Summary has no trailing newline), S3 3/3 (the currency suffix is presentation).
+  Records are immutable, so that noise accumulates.
+- **Cost on specified tasks.** C arms used 1.5–2× the total input tokens and 1.5–2× the wall time of
+  N on S3–S5: `compass resume`, the current-state rewrite and recording. S5 is where that paid off.
+- **The rewrite rule works under Codex.** Every C run rewrote current-state before stopping (21/21).
+
+## Verdict
+- **Keep:** decisions and `compass resume` (the only arm that didn't reverse a rejected
+  alternative had them; local records via INDEX.md were enough); current-state as last known
+  intent (handoff and drift both passed, and the rewrite happened in every run).
+- **Drop or don't build:** the full SessionStart brief for agents that run `compass resume` themselves
+  (it saved nothing, and agents re-ran resume anyway); decision delivery stays gated (local = global here).
+- **Fix next:** narrow the block's decision rule to choices with a rejected alternative someone
+  might reverse, and have `check` flag a record whose body is the empty skeleton.
+- n = 3 per arm, one model, one synthetic repo built to need its decision record; these bound the
+  questions rather than settle them.
