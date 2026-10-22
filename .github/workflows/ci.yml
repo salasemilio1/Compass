@@ -18,14 +18,8 @@ jobs:
       # real-model integration test run for real instead of self-skipping (see its docstring).
       - uses: astral-sh/setup-uv@v3
 
-      - name: Run bash test suite
-        run: bash tests/run_tests.sh
-
       - name: Run python test suite
         run: uv run --with pytest pytest tests/ -v
-
-      - name: Run compass CLI test suite
-        run: uv run --project cli --with pytest pytest cli/tests -v
 
   go:
     strategy:

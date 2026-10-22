@@ -160,11 +160,20 @@ Code enforces what review used to:
   conditional on that category existing; the dedup experiment shrank the corpus only 5%.
 
 ## Measures
-- **Resume cost (headline for the core):** tokens a fresh agent reads before its first useful action,
-  with and without compass, reported in the SessionStart status line.
+compass claims **continuity**, not discovery: a fresh or different agent picks up where the last
+one stopped. It does not claim fewer reads on a task the prompt already specifies (the core eval
+found none, n=2). The measures are taken by evals recorded in `experiments/`, not by the binary:
+there is no `stats` command and no status-line counter.
+- **Resume cost (headline for the core):** tokens of the brief a fresh agent gets before its first
+  useful action (the core eval: 93% smaller than v2's front door).
 - **Cross-agent resume:** a task interrupted mid-step in one agent and resumed in another from
   `compass resume` alone; scored on whether the second agent continues without redoing discovery.
-- **Discovery overhead:** Read/Grep/Glob calls before the first edit in a fresh session.
+  A cut-off session leaves current-state as it was; the brief's `git status` and diff carry the
+  unfinished work, so the measure counts what those carried.
+- **Unspecified continuation:** on a "continue" prompt that names no task, whether the agent finds
+  the live next step from the stub or the full brief (pending).
+- **Discovery overhead:** Read/Grep/Glob calls before the first edit; tracked as a guard against
+  compass adding cost, not as a claimed saving.
 - Delivery's measures (under- and over-feeding, coverage, flag fatigue) live in
   [delivery-plan.md](delivery-plan.md).
 

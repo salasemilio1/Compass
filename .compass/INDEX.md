@@ -8,10 +8,10 @@ Records below are live; search all of .compass/ with `rg -i <term> .compass/`.
 - [2026-10-21-disposable-sessions](goals/2026-10-21-disposable-sessions.md) — Disposable sessions: any agent, Claude or not, resumes the work without a discovery phase
 
 ## decisions
+- [0014-go-binary-as-built](decisions/0014-go-binary-as-built.md) — compass is one Go binary (CLI + hook handler, no stats, --json only on check/resume/record/doctor, binaries per 0013); v2 installer/scripts/cli deleted; it claims continuity, not discovery
 - [0013-plugin-is-a-subdirectory-with-reproducible-binaries](decisions/0013-plugin-is-a-subdirectory-with-reproducible-binaries.md) — the plugin is ./plugin (launcher in bin/, binaries in libexec/), built reproducibly so CI byte-checks the committed binaries
 - [0012-staleness-is-code-commits-after-current-state](decisions/0012-staleness-is-code-commits-after-current-state.md) — current-state is stale when code commits exist after the later of its in-history anchor and its last commit; stale warns locally and fails only CI (--require-fresh)
 - [0011-dedup-by-index-judge-not-embeddings](decisions/0011-dedup-by-index-judge-not-embeddings.md) — drop MiniLM embeddings (0.30 recall, 230 MB); dedup = cheap LLM judge over INDEX one-line hooks (P 0.96 / R 0.99, $0.017); merges append, never delete; no bulk consolidation (supersedes 0003)
-- [0010-go-binary-as-claude-code-plugin](decisions/0010-go-binary-as-claude-code-plugin.md) — compass becomes one Go binary (CLI + hook handler + MCP server over one core) shipped as a Claude Code plugin with committed mac/linux binaries; spike-verified install, hooks, MCP, subagent delivery…
 - [0009-environment-category-and-repo-layout-check](decisions/0009-environment-category-and-repo-layout-check.md) — adds an `environment/` category (one file per machine/service, keyed by host, overwritten in place) for SSH access/ports/version quirks that had no home; adds a warn-only `compass-check.sh` check…
 - [0008-graphify-becomes-optional-add-on](decisions/0008-graphify-becomes-optional-add-on.md) — graphify moves from default-installed+enforced to opt-in only (`COMPASS_WITH_GRAPHIFY=1`); a week under decisions/0005's forced-routing guard produced under 5 real uses despite the tool working well…
 - [0007-compass-init-as-cli](decisions/0007-compass-init-as-cli.md) — init-compass's mechanical scaffolding moves to a real Click CLI (cli/), fixing the template-path bug by construction; warm-up/wrap-up stay markdown skills (judgment-heavy, weak fit for a CLI)
@@ -22,14 +22,14 @@ Records below are live; search all of .compass/ with `rg -i <term> .compass/`.
 - [2026-10-21-v3-core-eval](experiments/2026-10-21-v3-core-eval.md) — v3 core eval on an ebay-flipper copy: resume cost, discovery overhead with and without compass, and a Claude-to-Codex mid-task handoff
 
 ## context
+- [overview](context/overview.md) — what compass is (v3: one Go binary plus the .compass/ format) and the repo layout
 - [positioning](context/positioning.md) — v3 goal (disposable sessions, cross-agent resume), staleness rule (nothing maintained in place, expiry by event), and the core: check/index/record/resume + AGENTS.md block + hooks
 - [delivery-plan](context/delivery-plan.md) — gated: file/symbol, prompt and caller triggers for decision delivery; four-arm trigger eval with design/held-out sets
 - [v3-direction](context/v3-direction.md) — portability (§1) still holds; retrieval B–E deferred, hygiene replaced, session economics moved out
 - [2026-10-15-ebay-flipper-retro](context/2026-10-15-ebay-flipper-retro.md) — first long-run field data: 90% of cost in main sessions, 78% above 300k context; 103 KB INDEX; logs/learnings mostly never re-read; model-by-task grades
-- [overview](context/overview.md) — what compass is, the three-layer model (compass/context-mode/graphify), repo layout
 
-## superseded (4, not delivered)
-0001-graphify-deterministic-only → 0008-graphify-becomes-optional-add-on; 0002-close-audited-gaps-with-deterministic-scripts → 0006-copy-not-symlink-global-install; 0003-learnings-dedup-always-runs-stage3 → 0011-dedup-by-index-judge-not-embeddings; 0006-copy-not-symlink-global-install → 0010-go-binary-as-claude-code-plugin
+## superseded (5, not delivered)
+0001-graphify-deterministic-only → 0008-graphify-becomes-optional-add-on; 0002-close-audited-gaps-with-deterministic-scripts → 0006-copy-not-symlink-global-install; 0003-learnings-dedup-always-runs-stage3 → 0011-dedup-by-index-judge-not-embeddings; 0006-copy-not-symlink-global-install → 0010-go-binary-as-claude-code-plugin; 0010-go-binary-as-claude-code-plugin → 0014-go-binary-as-built
 
 ## other folders (not records, not indexed)
 `environment/` (0), `learnings/` (15), `logs/` (14)

@@ -85,8 +85,8 @@ staged too), stages the index generated from the staged records, and exits 1 on 
 directory following this spec. Its purpose: **orient any agent in the codebase cheaply**, so sessions
 can be disposable and knowledge lives in the repo instead of in a conversation.
 
-This spec is the contract. `cli/compass_cli/template/` is the concrete scaffold that the `compass`
-CLI's `init` command copies into a target repo (see `/init-compass`, which wraps it).
+Part B is kept as history. The v2 implementation it names (the Python `compass` CLI in `cli/`,
+`scripts/compass-check.sh` and `install.sh`) was removed in v3; Part A and the Go binary replace it.
 
 ---
 
@@ -212,8 +212,8 @@ Rules:
   guaranteed to read, so every new artifact must add its line here.
 - **Capped.** `logs` and `experiments` sections are capped at 15 entries each. Entries beyond the cap are
   moved verbatim to `<category>/archive.md` (never linked from "Start here") by
-  `scripts/compass-check.sh --fix`, run automatically as part of `wrap-up`. This keeps warm-up's
-  guaranteed read cheap regardless of how long a repo has been in use — see `scripts/compass-check.sh`
+  v2's `compass-check.sh --fix`, run automatically as part of `wrap-up`. This keeps warm-up's
+  guaranteed read cheap regardless of how long a repo has been in use — see v2's `compass-check.sh`
   for the mechanism.
 
 ---
@@ -230,7 +230,7 @@ Rules:
   probably two entries.
 - Entries follow my `coding-style.md` conventions for prose too: precise, no needless abbreviation.
 - **ADR supersession:** an ADR that replaces an earlier one adds a `Supersedes: NNNN` line directly
-  under its `Date:` line. `scripts/compass-check.sh` mechanically prefixes the superseded ADR's
+  under its `Date:` line. v2's `compass-check.sh` mechanically prefixes the superseded ADR's
   `INDEX.md` row with `[SUPERSEDED by NNNN]` — this is a deterministic string operation on explicit
   metadata, not an inference about whether two decisions conflict.
 - **`current-state.md` anchor:** carries a `Commit: <hash>` line under its `Date:` line, stamped by
@@ -247,7 +247,7 @@ Rules:
 - `wrap-up` — at task end, drafts a `logs/` entry (+ any ADRs, + `INDEX.md` update), I review, commit.
   Also asks separately whether anything about the *environment itself* (access, ports, paths, pinned
   versions) surprised me this session, and if so writes/updates `environment/<host>.md` in place rather
-  than adding a `learnings/` entry. Runs `scripts/compass-check.sh --fix` (archives overflow, stamps
+  than adding a `learnings/` entry. Runs v2's `compass-check.sh --fix` (archives overflow, stamps
   `Commit:`) and, before writing a new `learnings/` or `environment/` entry,
   `tools/learning-dedup/check_similarity.py` (see dedup note above) — both deterministic steps, not
   judgment calls left to the skill. A near-duplicate hit against an existing `environment/*.md` is a
@@ -257,6 +257,6 @@ Rules:
 - `promote` — moves a private-first entry into the shared set.
 
 All capture is **command-triggered and human-reviewed**. Agents never silently write `.compass/`.
-`scripts/compass-check.sh` (check-only, no `--fix`) also runs as this repo's own local `.git/hooks/pre-commit`
+v2's `compass-check.sh` (check-only, no `--fix`) also ran as this repo's local `.git/hooks/pre-commit`
 — a backstop that blocks a commit on a real violation independent of whether `wrap-up`'s steps were
 followed correctly.
