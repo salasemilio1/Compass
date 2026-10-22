@@ -47,3 +47,36 @@ Every final tree also gets `compass check`, counting `record-body-empty`.
 4. **No regression:** R4 honours the decision 3/3.
 
 n = 3 per run type, one model, one synthetic repo: a directional check of the fix, not a measure.
+
+---
+
+# Results (2026-10-22, after the runs)
+
+12 runs, all exited 0, `go test ./...` passed in every final tree; every run ran `compass resume`
+first and rewrote current-state.
+
+| Run | Decision records | Outcome |
+|---|---|---|
+| R1 currency flag ×3 | 0, 0, 0 (core eval: 3/3) | flag done; nothing recorded |
+| R2 Summary (stub) ×3 | 0, 0, 0 (core eval: 1/3) | step done; nothing recorded |
+| R3 discount ×3 | 1, 1, 1, all with full bodies | tax base and why stated in 2/3 |
+| R4 rounding complaint ×3 | 0 | honoured 3/3, citing the decision |
+
+- **Bar 1, over-recording fixed: PASS.** 0 decision records in the 6 trivia runs (core eval: 4 of 6).
+- **Bar 2, real decisions still recorded: PASS (2/3, at the bar).** All three R3 runs recorded
+  unprompted with Context/Decision/Alternatives filled in. Two state the discount applies to the
+  tax-inclusive total and reject "discount before tax" because it would change the per-line tax
+  Ledgerly reconciles; R3-1's record covers only the float exception and never names the tax base.
+  All three framed the record as extending decision 0001 (integer cents) and superseded it, so
+  the tax-base choice sits under a cents claim rather than its own.
+- **Bar 3, no empty records: PASS.** 0 `record-body-empty` across the 12 final trees (core eval
+  had 1 of 3 discount records empty).
+- **Bar 4, no regression: PASS.** R4 kept half-to-even 3/3 and cited the decision.
+
+Other: R3's uncached tokens rose to 27–33k (core eval 16–22k), the price of writing real bodies.
+
+## Verdict
+Decision 0017 does what it was for: trivia records went from 4 of 6 to 0 of 6, empty bodies to 0,
+with no loss on the rounding guard. Still open: agents attach a new choice to the nearest existing
+decision (superseding it) instead of recording the choice under its own claim, which can hide it;
+n = 3, so this is direction, not measure.
