@@ -1,7 +1,7 @@
 # current state
 
 Date: 2026-10-22
-Commit: a61202e4caec3b67749d25f89b8eb80b217a7e34
+Commit: dea667a5f4f53e4f5f2a7753b13562faded3e0ef
 
 ## Objective
 Ship compass v3 as a narrow tool that owns only the why, the why-not and where-we-are
@@ -9,13 +9,14 @@ Ship compass v3 as a narrow tool that owns only the why, the why-not and where-w
 The work is on branch `claude/compass-scope-refine-4e1fc9`, on top of `claude/go-rewrite-74db42`;
 nothing is pushed, released or merged. The Codex eval of the core operations
 (experiments/2026-10-22-codex-core-operations-eval.md) passed 4 of 5 bars; its fixes are
-decisions 0017 and 0018.
+decisions 0017 and 0018; 0019 adds the search instruction.
 
 ## Next steps
-1. **Retrieval at scale:** the `retrieval-experiment` session's agent runs decide whether a search
-   command is needed or one AGENTS.md line suffices. Offline (experiments/2026-10-22-retrieval-q2-keywords.md),
-   no ranker, keyword line or embedding blend cleared its bar on a blind graded set: don't build one
-   for ranking quality. Decision 0018 cut folding; agents still don't record obvious-looking choices.
+1. **Watch decision reads in real use:** the block now says to search the records with `rg` before
+   changing behaviour (decision 0019; it took buried decisions from 3/9 to 9/9 in the
+   retrieval-at-scale eval, branch `claude/retrieval-experiment-0cc627`, not merged). Build a
+   keyword `compass find` over live records only if a run reverses a decision because the target
+   was buried in `rg` output or a superseded record misled it.
 2. **Emilio:** review both branches, push, open a PR, watch CI's first run (verify-plugin, smoke,
    `check --require-fresh`); after merge tag `v0.3.0` and test `go install ...@latest`.
 3. **Emilio:** `uv tool uninstall compass-cli` (it still shadows the Go binary; doctor's warning
