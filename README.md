@@ -47,10 +47,10 @@ compass`), or delete the binary. Nothing else is written outside your repositori
 
 ```bash
 compass init        # once per repo: .compass/, the AGENTS.md block, a git pre-commit hook;
-                    # fill in the current-state template before your first commit (check rejects it)
+                    # fill in the current-state template before your first commit (check warns until then)
 compass resume      # what a fresh agent reads first
 compass record decision --claim "Prices come from the model's own fit" --premise "goal:quick-flip"
-compass check       # caps, anchor, files in play, claims, supersedes, refs (pre-commit and CI)
+compass check       # caps, anchor, next steps, claims, supersedes, refs (pre-commit and CI)
 compass index       # regenerate .compass/INDEX.md (pre-commit does this)
 compass doctor      # install problems, such as an old compass shadowing this one
 ```
@@ -58,7 +58,7 @@ compass doctor      # install problems, such as an old compass shadowing this on
 `compass help` lists every flag; `check`, `resume`, `record` and `doctor` take `--json`. Exit status: 0 ok, 1 findings or failure, 2 usage error.
 
 **The format.** `.compass/context/current-state.md` is the front door: at most 80 lines
-(objective, just done, files in play, next steps), rewritten whole at each boundary, with a
+of last known intent (objective, next steps; never a plan), rewritten whole at each boundary, with a
 `Commit:` line set from `git rev-parse HEAD`. Decisions, goals and experiments are dated records
 that are never edited; each has frontmatter:
 

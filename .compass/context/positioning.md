@@ -33,8 +33,8 @@ Before agents, project knowledge lived in four layers. Agents keep three of them
 **Litmus test for every write:** could a fresh agent derive this from the code plus `git log`
 cheaply? If yes, compass doesn't store it. It points to it.
 
-**What compass holds:** current state, decisions (with their premises), live plans, and experiment
-results. Learnings route out: to a rule, to a comment, or merged into the decision they affect.
+**What compass holds:** current state (last known intent), decisions (with their premises), and
+experiment results; plans live with the task (a PR, an issue, a scratch file). Learnings route out: to a rule, to a comment, or merged into the decision they affect.
 
 ## Staleness: nothing is maintained in place
 Any document someone has to keep current goes stale; READMEs and specs do, and so did this repo's
@@ -44,7 +44,7 @@ Every compass doc is one of three kinds:
 | Kind | Examples | Why it can't silently rot |
 |---|---|---|
 | **Generated** | INDEX.md, symbol tables, the search index, every doc's `status` | Rebuilt from source on every commit and on every `record`; the hook checks the index hash, so a decision recorded but not yet committed is still delivered |
-| **Overwritten whole** | `current-state.md` | Rewritten at each boundary, never patched; its `Commit:` anchor is checked, and every path under "files in play" must exist |
+| **Overwritten whole** | `current-state.md` | Rewritten at each boundary, never patched; its `Commit:` anchor is checked |
 | **Immutable dated record** | decisions, goals, experiment results | States what was decided or found *on a date*. History stays true; only its applicability changes. A record's text is never edited: `status` is derived from the `supersedes:` links of later records, not written into the old one |
 
 Overwriting is not a guarantee of truth: an agent can rewrite current-state from a stale copy, and the
@@ -82,8 +82,8 @@ phase, and work resumes on a different agent when one hits its usage limit. That
 value. Everything in this doc serves it; the scaling layer in
 [delivery-plan.md](delivery-plan.md) is built only if an eval says it's needed.
 
-**Front door: `current-state.md`.** It's capped (about 80 lines) and covers the objective, what was
-just done, the files in play and the next steps. It's overwritten at each boundary, with its
+**Front door: `current-state.md`.** It's capped (about 80 lines) and holds last known intent: the
+objective and the next steps, never a plan; git and the user's current prompt win over it. It's overwritten at each boundary, with its
 `Commit:` anchor checked. What loads at session start is **recent state plus live long-term memory**:
 current-state (the hot window) and the capped list of live `scope: global` claims, regardless of
 their age. Recency picks the state; status picks the decisions. On any project, even an afternoon
@@ -99,7 +99,7 @@ automatically.
 **The core, in full:**
 1. **The format:** `current-state.md`, decisions, goals and experiments, each with frontmatter
    (`claim`, `premises`, `supersedes`, `refs`, `scope`).
-2. **`compass check`:** caps, the `Commit:` anchor, files in play exist, every doc has a `claim`,
+2. **`compass check`:** caps, the `Commit:` anchor, next steps written, every doc has a `claim`,
    status derived from `supersedes:`, refs that are present resolve. Runs in pre-commit and CI.
 3. **`compass index`:** generates INDEX.md under a token cap.
 4. **`compass record` and `compass resume`:** write a dated record; print the resume brief.

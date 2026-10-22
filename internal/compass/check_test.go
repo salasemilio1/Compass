@@ -5,13 +5,14 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCheckPassesACleanProject(t *testing.T) {
 	f := newFixture(t)
 	f.write("src/main.go", "package main\n")
 	head := f.commit("code")
-	f.state(head, "src/main.go")
+	f.state(head)
 	f.record("goals/2026-01-01-ship.md", "claim: ship")
 	f.record("decisions/0001-go.md", "claim: use Go\nrefs:\n  - commit:"+head[:7]+"\n  - src/main.go\n  - https://example.com/x\n  - goals/2026-01-01-ship.md\n  - ../goals/2026-01-01-ship.md")
 	f.clean()
@@ -92,36 +93,38 @@ func TestCheckCurrentState(t *testing.T) {
 	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"error:anchor-malformed", "warn:next-steps-missing"}) {
 		t.Errorf("malformed anchor: %v", got)
 	}
-	f.state(head, "gone.go", "*.md", "https://x.y/z")
-	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"error:file-in-play-missing"}) {
-		t.Errorf("missing file in play (globs and URLs skipped): %v", got)
-	}
 	f.write(".compass/context/current-state.md", "Commit: "+head+"\n"+strings.Repeat("line\n", CurrentStateMaxLines))
 	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"error:current-state-too-long", "warn:next-steps-missing"}) {
 		t.Errorf("over the cap: %v", got)
 	}
 }
 
-// Next steps are what a fresh agent acts on first; the heading matches like Files in play does.
+// Next steps are what a fresh agent acts on first; a template placeholder is not one, and a legacy
+// Files in play heading ends the section.
 func TestCheckNextSteps(t *testing.T) {
 	f := newFixture(t)
 	head := f.commit("init")
 	f.clean()
 	for text, missing := range map[string]bool{
-		"## Next steps\n1. go\n":                         false,
-		"### NEXT STEPS\n- go\n":                         false,
-		"## next steps  \n\n1. go\n":                     false,
-		"## Next steps:\n1. go\n":                        false,
-		"## Next steps (in order)\n1. go\n":              false,
-		"```\n## Next steps\n1. go\n```\n":               true,
-		"## Next stepsize\n1. go\n":                      true,
-		"## Just done\n```go\nx\n## Next steps\n1. go\n": false,
-		"```\n~~~\n```\n## Next steps\n1. go\n":          false,
-		"## Next steps\n```\n```\n":                      true,
-		"## Next steps\n\n## Known issues\n":             true,
-		"## Next steps\n":                                true,
-		"## Next\n1. go\n":                               true,
-		"# Next steps\n1. go\n":                          true,
+		"## Next steps\n1. go\n":                           false,
+		"### NEXT STEPS\n- go\n":                           false,
+		"## next steps  \n\n1. go\n":                       false,
+		"## Next steps:\n1. go\n":                          false,
+		"## Next steps (in order)\n1. go\n":                false,
+		"```\n## Next steps\n1. go\n```\n":                 true,
+		"## Next stepsize\n1. go\n":                        true,
+		"## Just done\n```go\nx\n## Next steps\n1. go\n":   false,
+		"```\n~~~\n```\n## Next steps\n1. go\n":            false,
+		"## Next steps\n```\n```\n":                        true,
+		"## Next steps\n\n## Known issues\n":               true,
+		"## Next steps\n":                                  true,
+		"## Next\n1. go\n":                                 true,
+		"# Next steps\n1. go\n":                            true,
+		"## Next steps\n1. <the next concrete action>\n":   true,
+		"## Next steps\n- <step>\n<more>\n":                true,
+		"## Next steps\n1. <step> then ship\n":             false,
+		"## Next steps\n\n## Files in play\n- `a.go`\n":    true,
+		"## Next steps\n- <https://example.com/pull/12>\n": false,
 	} {
 		f.write(".compass/context/current-state.md", "Commit: "+head+"\n"+text)
 		if got := hasCode(f.check(CheckOptions{}), "next-steps-missing"); got != missing {
@@ -227,6 +230,32 @@ func TestFreshness(t *testing.T) {
 	}
 	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"warn:anchor-unresolved", "warn:anchor-stale"}) {
 		t.Errorf("without --require-fresh staleness is a warning: %v", got)
+	}
+}
+
+// An unfilled template is incomplete, not broken: check warns and still passes.
+func TestCheckWarnsOnAnUnfilledTemplate(t *testing.T) {
+	f := newFixture(t)
+	f.commit("init")
+	if _, err := Init(f.repo.Root, InitOptions{NoGitHook: true, Today: time.Date(2026, 10, 22, 0, 0, 0, 0, time.UTC)}); err != nil {
+		t.Fatal(err)
+	}
+	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"warn:next-steps-missing"}) {
+		t.Errorf("got %v", got)
+	}
+}
+
+func TestAgentsBlockSaysGitAndThePromptWin(t *testing.T) {
+	for _, want := range []string{
+		"Where current-state disagrees with git or the user's current prompt,** git and the prompt win",
+		"`.compass/context/` holds standing context (conventions, environment), not plans",
+	} {
+		if !strings.Contains(AgentsBlock, want) {
+			t.Errorf("AgentsBlock lacks %q", want)
+		}
+	}
+	if strings.Contains(AgentsBlock, "compass check") {
+		t.Error("AgentsBlock mentions `compass check`; the pre-commit hook runs it")
 	}
 }
 

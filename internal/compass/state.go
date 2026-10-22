@@ -15,12 +15,12 @@ const CurrentStateMaxLines = 80
 var (
 	anchorLine     = regexp.MustCompile(`^Commit:\s*(\S*)\s*$`)
 	anchorHash     = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
-	filesInPlay    = regexp.MustCompile(`(?i)^#{2,3}\s+files in play\s*$`)
 	nextSteps      = regexp.MustCompile(`(?i)^#{2,3}\s+next steps\b`)
-	codeSpan       = regexp.MustCompile("`([^`]+)`")
-	markdownLink   = regexp.MustCompile(`\]\(([^)\s]+)\)`)
 	anyHeading     = regexp.MustCompile(`^#{1,3}\s`)
 	schemePrefixed = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9+.-]*:`)
+	// placeholder is a line holding only a template's `<...>`, optionally as a list item: an
+	// unfilled template must not pass for a written objective or next step.
+	placeholder = regexp.MustCompile(`^\s*(?:(?:[-*+]|\d+[.)])\s+)?<[^<>:@]*>\s*$`)
 )
 
 // CurrentState is the parsed front door.
@@ -28,10 +28,10 @@ type CurrentState struct {
 	Text  string
 	Lines int
 	// Anchor is the Commit: value as written ("" when the line is missing).
-	Anchor      string
-	HasAnchor   bool
-	FilesInPlay []string
-	// HasNextSteps is true when a "## Next steps" heading has at least one non-blank line under it.
+	Anchor    string
+	HasAnchor bool
+	// HasNextSteps is true when a "## Next steps" heading has at least one line under it that is
+	// neither blank nor a template placeholder.
 	HasNextSteps bool
 }
 
@@ -47,15 +47,14 @@ func (r *Repo) ReadCurrentState() (*CurrentState, error) {
 	return ParseCurrentState(string(data)), nil
 }
 
-// ParseCurrentState extracts the anchor, whether next steps are written, and the paths listed
-// under "## Files in play". A path is the first `code span` or link target on a list item; globs
-// and URLs are skipped. Headings inside ``` or ~~~ fences are content, not headings.
+// ParseCurrentState extracts the anchor and whether next steps are written. Headings inside ```
+// or ~~~ fences are content, not headings.
 func ParseCurrentState(text string) *CurrentState {
 	state := &CurrentState{Text: text}
 	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
 	state.Lines = len(lines)
 	fenced := fencedLines(lines)
-	inFiles, inNext := false, false
+	inNext := false
 	for i, line := range lines {
 		inFence := fenced[i]
 		if m := anchorLine.FindStringSubmatch(line); m != nil && !state.HasAnchor {
@@ -63,36 +62,17 @@ func ParseCurrentState(text string) *CurrentState {
 			state.Anchor = m[1]
 			continue
 		}
-		if !inFence && filesInPlay.MatchString(line) {
-			inFiles, inNext = true, false
-			continue
-		}
 		if !inFence && nextSteps.MatchString(line) {
-			inFiles, inNext = false, true
+			inNext = true
 			continue
 		}
 		if !inFence && anyHeading.MatchString(line) {
-			inFiles, inNext = false, false
+			inNext = false
 			continue
 		}
-		trimmed := strings.TrimSpace(line)
-		if inNext && trimmed != "" && fenceMarker(line) == "" {
+		if inNext && strings.TrimSpace(line) != "" && fenceMarker(line) == "" && !placeholder.MatchString(line) {
 			state.HasNextSteps = true
 		}
-		if !inFiles || !(strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ")) {
-			continue
-		}
-		path := ""
-		if m := codeSpan.FindStringSubmatch(trimmed); m != nil {
-			path = m[1]
-		} else if m := markdownLink.FindStringSubmatch(trimmed); m != nil {
-			path = m[1]
-		}
-		path = strings.TrimSpace(path)
-		if path == "" || strings.ContainsAny(path, "*?[ ") || schemePrefixed.MatchString(path) {
-			continue
-		}
-		state.FilesInPlay = append(state.FilesInPlay, path)
 	}
 	return state
 }

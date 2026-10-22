@@ -77,7 +77,7 @@ func Resume(repo *Repo) (*Brief, error) {
 		case freshness.CodeCommits == 0:
 			brief.Freshness = "current: no code commits since it was written"
 		default:
-			brief.Freshness = fmt.Sprintf("STALE: %d code commit(s) since it was written; trust the code and git log over it, and rewrite it", freshness.CodeCommits)
+			brief.Freshness = fmt.Sprintf("STALE: %d code commit(s) since it was written; git and the user's current prompt win over it; rewrite it", freshness.CodeCommits)
 		}
 		if freshness.Known {
 			if out, err := repo.Git("log", "--format=%h %s", fmt.Sprintf("-%d", resumeMaxCommits+1), freshness.Since+"..HEAD"); err == nil && out != "" {
@@ -195,13 +195,13 @@ func (b *Brief) Current() bool { return strings.HasPrefix(b.Freshness, "current:
 var listItem = regexp.MustCompile(`^\s*([-*+]|\d+[.)])\s+\S`)
 
 // firstStep returns the first list item of a next-steps body, else its first line of prose,
-// skipping fenced code; StubMissing when there is neither.
+// skipping fenced code and template placeholders; StubMissing when there is neither.
 func firstStep(body []string) string {
 	fenced := fencedLines(body)
 	first := ""
 	for i, line := range body {
 		text := oneLine(line)
-		if fenced[i] || text == "" {
+		if fenced[i] || text == "" || placeholder.MatchString(line) {
 			continue
 		}
 		if listItem.MatchString(line) {
@@ -230,7 +230,13 @@ func (b *Brief) Stub(maxChars int) string {
 		body := section.lines[min(1, len(section.lines)):]
 		switch section.rank {
 		case rankObjective:
-			if text := oneLine(strings.Join(body, " ")); text != "" {
+			var written []string
+			for _, line := range body {
+				if !placeholder.MatchString(line) {
+					written = append(written, line)
+				}
+			}
+			if text := oneLine(strings.Join(written, " ")); text != "" {
 				objective = text
 			}
 		case rankNextSteps:
@@ -249,9 +255,9 @@ func (b *Brief) Stub(maxChars int) string {
 	return head + "\nObjective: " + truncateBytes(objective, room) + "\n" + tail
 }
 
-// stateSectionRanks orders current-state sections by which to trim first: history and issues
-// go before files in play, unrecognised sections next, then the objective; the last next steps
-// section is kept.
+// stateSectionRanks orders current-state sections by which to trim first. Just done, Known issues
+// and Files in play are legacy sections from older files, cut first; unrecognised sections next,
+// then the objective; the last next steps section is kept.
 // Titles match case-insensitively at H2 or H3, by prefix ("## Next steps (in order)").
 var stateSectionRanks = []struct {
 	heading *regexp.Regexp
@@ -317,7 +323,7 @@ func splitStateSections(text string) (sections []*stateSection, known bool) {
 func cutLinesMarker(count int) string { return fmt.Sprintf("… %d lines cut", count) }
 
 // cutStateSections fits current-state into max bytes, cutting the least useful text first:
-// the bottoms of Just done, Known issues, Files in play and unrecognised sections, then those
+// the bottoms of legacy sections (Just done, Known issues, Files in play) and unrecognised ones, then those
 // sections whole, then the bottom of the objective, then everything but the next steps from the
 // middle. Next steps are cut only when they alone exceed max. Text with no recognised heading
 // falls back to cutMiddle.

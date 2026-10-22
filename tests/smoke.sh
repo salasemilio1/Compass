@@ -29,9 +29,9 @@ git add -A && git commit -q -m "code"
 compass init > "$work/init.out"
 grep -q "installed git pre-commit hook" "$work/init.out" || fail "init did not install the git hook: $(cat "$work/init.out")"
 grep -q "compass resume" AGENTS.md || fail "AGENTS.md block"
-if compass check > "$work/check.out"; then fail "check passed with the template's placeholder file in play"; fi
-grep -q "file-in-play-missing" "$work/check.out" || fail "expected file-in-play-missing: $(cat "$work/check.out")"
-pass "init scaffolds; check rejects the unfilled template"
+compass check > "$work/check.out" || fail "check failed on the unfilled template: $(cat "$work/check.out")"
+grep -q "next-steps-missing" "$work/check.out" || fail "expected next-steps-missing: $(cat "$work/check.out")"
+pass "init scaffolds; check warns on the unfilled template"
 
 head=$(git rev-parse HEAD)
 cat > .compass/context/current-state.md <<EOF

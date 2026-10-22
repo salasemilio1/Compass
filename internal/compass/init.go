@@ -24,12 +24,6 @@ Commit: %s
 ## Objective
 <what this work is for, in one or two lines>
 
-## Just done
-- <what landed, pointing at commits rather than restating them>
-
-## Files in play
-- ` + "`<path>`" + ` — <why it matters right now>
-
 ## Next steps
 1. <the next concrete action>
 `

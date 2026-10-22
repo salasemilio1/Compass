@@ -211,7 +211,7 @@ func checkCurrentState(repo *Repo, options CheckOptions, git bool) []Finding {
 	}
 	if state == nil {
 		return []Finding{{Severity: SeverityWarn, Code: "current-state-missing", Path: path,
-			Message: "no current-state.md: a fresh agent has no front door (write one: objective, just done, files in play, next steps)"}}
+			Message: "no current-state.md: a fresh agent has no front door (write one: objective, next steps)"}}
 	}
 	var findings []Finding
 	if state.Lines > CurrentStateMaxLines {
@@ -221,12 +221,6 @@ func checkCurrentState(repo *Repo, options CheckOptions, git bool) []Finding {
 	if !state.HasNextSteps {
 		findings = append(findings, Finding{Severity: SeverityWarn, Code: "next-steps-missing", Path: path,
 			Message: "no `## Next steps` with content: the next agent won't know what to do first"})
-	}
-	for _, file := range state.FilesInPlay {
-		if !repo.exists(file) {
-			findings = append(findings, Finding{Severity: SeverityError, Code: "file-in-play-missing", Path: path,
-				Message: fmt.Sprintf("files in play lists %q, which does not exist", file)})
-		}
 	}
 	// D: the anchor proves when current-state was written.
 	switch {

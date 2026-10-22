@@ -59,8 +59,8 @@ func TestInitRecordCheckResumeFlow(t *testing.T) {
 	if code, out, stderr := call("", "init", "--no-git-hook"); code != 0 {
 		t.Fatalf("init: %d %s %s", code, out, stderr)
 	}
-	// The template's placeholder file in play fails check until the agent fills it in.
-	if code, out, _ := call("", "check"); code != 1 || !strings.Contains(out, "file-in-play-missing") {
+	// The unfilled template warns that next steps are missing, but doesn't fail check.
+	if code, out, _ := call("", "check"); code != 0 || !strings.Contains(out, "next-steps-missing") {
 		t.Errorf("check after init: %d\n%s", code, out)
 	}
 	os.WriteFile(".compass/context/current-state.md", []byte("# state\nCommit: "+head(t)+"\n## Next steps\n1. go\n"), 0o644)

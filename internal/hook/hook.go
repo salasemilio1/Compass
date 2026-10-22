@@ -129,8 +129,8 @@ func staleness(cwd string) string {
 		return ""
 	}
 	return fmt.Sprintf("compass: %d commit(s) changed code since .compass/context/current-state.md was written. "+
-		"Rewrite it whole (objective, just done, files in play, next steps; at most 80 lines), set its `Commit:` line to the output of `git rev-parse HEAD`, "+
-		"and commit it, so the next agent can resume.", freshness.CodeCommits)
+		"Git and the user's current prompt win over it. Rewrite it whole (objective and next steps; at most 80 lines), "+
+		"set its `Commit:` line to the output of `git rev-parse HEAD`, and commit it, so the next agent can resume.", freshness.CodeCommits)
 }
 
 // Stop blocks ending the turn once when current-state is stale. stop_hook_active means this turn

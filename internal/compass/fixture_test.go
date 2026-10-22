@@ -68,14 +68,10 @@ func (f *fixture) commit(message string) string {
 }
 
 // state writes a valid current-state.md anchored at anchor.
-func (f *fixture) state(anchor string, filesInPlay ...string) {
+func (f *fixture) state(anchor string) {
 	f.t.Helper()
-	var files strings.Builder
-	for _, file := range filesInPlay {
-		files.WriteString("- `" + file + "` — in play\n")
-	}
 	f.write(".compass/context/current-state.md", "# current state\n\nDate: 2026-10-21\nCommit: "+anchor+
-		"\n\n## Objective\nShip it.\n\n## Files in play\n"+files.String()+"\n## Next steps\n1. Next.\n")
+		"\n\n## Objective\nShip it.\n\n## Next steps\n1. Next.\n")
 }
 
 func (f *fixture) record(path, frontmatter string) {

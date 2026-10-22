@@ -13,7 +13,7 @@ func TestResumeBrief(t *testing.T) {
 	f := newFixture(t)
 	f.write("a.go", "package a\n")
 	head := f.commit("first")
-	f.state(head, "a.go")
+	f.state(head)
 	f.record("decisions/0001-old.md", "claim: old global\nscope: global")
 	f.record("decisions/0002-new.md", "claim: new global\nscope: global\nsupersedes: [0001]")
 	f.record("decisions/0003-local.md", "claim: local only")
@@ -32,6 +32,7 @@ func TestResumeBrief(t *testing.T) {
 	for _, want := range []string{
 		"# compass resume — " + f.repo.Name() + " (branch main)",
 		"Freshness: STALE: 1 code commit(s)",
+		"git and the user's current prompt win over it; rewrite it",
 		"## Objective\nShip it.",
 		"## Commits since current-state was written\n",
 		"add b",
@@ -375,6 +376,19 @@ func TestBriefStub(t *testing.T) {
 
 	if stub := (&Brief{Project: "p"}).Stub(500); strings.Count(stub, StubMissing) != 2 {
 		t.Errorf("empty current-state:\n%s", stub)
+	}
+}
+
+// An unfilled template has no objective or next step yet; its placeholders must not pass for them.
+func TestBriefStubSkipsTemplatePlaceholders(t *testing.T) {
+	stub := (&Brief{Project: "p", CurrentState: fmt.Sprintf(currentStateTemplate, "2026-10-22", "abc1234")}).Stub(500)
+	for _, want := range []string{"Objective: " + StubMissing + "\n", "Next step: " + StubMissing + "\n"} {
+		if !strings.Contains(stub, want) {
+			t.Errorf("stub lacks %q:\n%s", want, stub)
+		}
+	}
+	if strings.Contains(stub, "<") {
+		t.Errorf("stub shows a placeholder:\n%s", stub)
 	}
 }
 
