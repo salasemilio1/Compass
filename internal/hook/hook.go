@@ -62,8 +62,14 @@ type output struct {
 	HookSpecificOutput *hookSpecificOutput `json:"hookSpecificOutput,omitempty"`
 }
 
-// SessionStart injects the resume brief. pluginRoot, when set, is used to name the right binary
-// if a Python compass-cli shadows it on PATH.
+// SessionStartStubMaxChars bounds the short brief, preface included.
+const SessionStartStubMaxChars = 500
+
+// SessionStart injects the resume brief: the full one when the agent is likely mid-task or the
+// state can't be trusted (after compaction or a resumed session, with uncommitted changes, or
+// when current-state is stale or its freshness unknown), else a stub that points to
+// `compass resume`, so a session that may not need the rest doesn't pay for it. pluginRoot, when
+// set, is used to name the right binary if a Python compass-cli shadows it on PATH.
 func SessionStart(input Input, pathList, pluginRoot string) ([]byte, error) {
 	repo, err := findRepo(input.Cwd)
 	if err != nil {
@@ -73,20 +79,39 @@ func SessionStart(input Input, pathList, pluginRoot string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	shadow := compass.ShadowingPython(pathList)
+	full := needsFullBrief(input.Source, brief, shadow)
 	var preface strings.Builder
-	preface.WriteString("compass: this is the resume brief (`compass resume`), already loaded; don't re-run it.\n")
+	if full {
+		preface.WriteString("compass: this is the resume brief (`compass resume`), already loaded; don't re-run it.\n")
+	} else {
+		preface.WriteString("compass: current-state is current and the tree is clean; this is its short form.\n")
+	}
 	if strings.HasPrefix(brief.Freshness, "STALE") && input.Source == "compact" {
 		preface.WriteString("Context was just compacted and current-state.md is stale: rewrite it now, before continuing.\n")
 	}
-	if shadow := compass.ShadowingPython(pathList); shadow != "" {
+	if shadow != "" {
 		binary := "compass"
 		if pluginRoot != "" {
 			binary = `"` + filepath.Join(pluginRoot, "bin", "compass") + `"`
 		}
 		fmt.Fprintf(&preface, "Note: `compass` on PATH is the old Python compass-cli (%s); run %s instead, and tell the user to remove it (uv tool uninstall compass-cli).\n", shadow, binary)
 	}
-	text := preface.String() + "\n" + brief.Text(SessionStartMaxChars-preface.Len()-1)
+	var text string
+	if full {
+		text = preface.String() + "\n" + brief.Text(SessionStartMaxChars-preface.Len()-1)
+	} else {
+		text = preface.String() + brief.Stub(max(SessionStartStubMaxChars-preface.Len(), 0))
+	}
 	return json.Marshal(output{HookSpecificOutput: &hookSpecificOutput{HookEventName: "SessionStart", AdditionalContext: text}})
+}
+
+// needsFullBrief reports whether the agent should get the whole brief: it is likely mid-task
+// (compaction, a resumed session, uncommitted or unknown work), current-state can't be trusted, or
+// a Python compass-cli shadows the binary, whose note would crowd the stub.
+func needsFullBrief(source string, brief *compass.Brief, shadow string) bool {
+	return source == "compact" || source == "resume" || len(brief.Status) > 0 || brief.StatusUnknown ||
+		!brief.Current() || shadow != ""
 }
 
 // staleness returns a non-empty reason when commits changed code after current-state was written.

@@ -351,3 +351,109 @@ func TestPreCommitStagesTheRegeneratedIndex(t *testing.T) {
 		t.Errorf("INDEX.md not staged: %q", staged)
 	}
 }
+
+func TestBriefStub(t *testing.T) {
+	state := "# current state\nCommit: abc1234\n\n## Objective\nShip the stub.\nKeep it short.\n\n" +
+		"## Next steps (archived)\n1. old step\n\n## Just done\n- things\n\n## Next steps\n\n1. live step\n2. later step\n"
+	brief := &Brief{Project: "p", Branch: "main", CurrentState: state}
+	stub := brief.Stub(500)
+	for _, want := range []string{"# compass — p (branch main)", "Objective: Ship the stub. Keep it short.", "Next step: 1. live step", "`compass resume`"} {
+		if !strings.Contains(stub, want) {
+			t.Errorf("stub lacks %q:\n%s", want, stub)
+		}
+	}
+	for _, unwanted := range []string{"old step", "later step", "things"} {
+		if strings.Contains(stub, unwanted) {
+			t.Errorf("stub has %q:\n%s", unwanted, stub)
+		}
+	}
+
+	long := &Brief{Project: "p", CurrentState: "## Objective\n" + strings.Repeat("word ", 200) + "\n## Next steps\n1. act\n"}
+	if stub := long.Stub(300); len(stub) > 300 || !strings.Contains(stub, "Next step: 1. act") {
+		t.Errorf("long objective: %d chars, next step kept: %v\n%s", len(stub), strings.Contains(stub, "1. act"), stub)
+	}
+
+	if stub := (&Brief{Project: "p"}).Stub(500); strings.Count(stub, StubMissing) != 2 {
+		t.Errorf("empty current-state:\n%s", stub)
+	}
+}
+
+// The stub never panics or overruns, however small the budget.
+func TestBriefStubTinyBudgets(t *testing.T) {
+	brief := &Brief{Project: "p", CurrentState: "## Objective\nShip it.\n## Next steps\n1. act now\n"}
+	for max := 0; max <= 60; max++ {
+		if stub := brief.Stub(max); len(stub) > max {
+			t.Errorf("Stub(%d) is %d bytes: %q", max, len(stub), stub)
+		}
+	}
+}
+
+func TestBriefStubNextStepSkipsFencesAndProse(t *testing.T) {
+	tests := []struct{ name, body, want string }{
+		{"list after prose", "Ordered by priority:\n\n1. real step\n2. later", "1. real step"},
+		{"list after fence", "```\n- not a step\n```\n- real step", "- real step"},
+		{"prose only", "\nJust ship it.\nThen rest.", "Just ship it."},
+		{"fence only", "```\nmake test\n```", StubMissing},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stub := (&Brief{Project: "p", CurrentState: "## Next steps\n" + test.body + "\n"}).Stub(500)
+			if !strings.Contains(stub, "Next step: "+test.want+"\n") {
+				t.Errorf("want next step %q:\n%s", test.want, stub)
+			}
+		})
+	}
+}
+
+// A failed git status must not read as a clean tree.
+func TestResumeMarksFailedStatusUnknown(t *testing.T) {
+	f := newFixture(t)
+	f.write("a.go", "package a\n")
+	f.state(f.commit("first"))
+	f.commit("state")
+	if err := os.WriteFile(filepath.Join(f.repo.Root, ".git", "index"), []byte("garbage"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	brief, err := Resume(f.repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !brief.StatusUnknown || !strings.Contains(brief.Text(0), "(unknown: git status failed") {
+		t.Errorf("status unknown not recorded: %+v\n%s", brief, brief.Text(0))
+	}
+}
+
+// Work inside a submodule is its own; a moved submodule commit, untracked files and .compass/
+// edits are this repo's uncommitted work.
+func TestResumeStatusIgnoresDirtySubmodules(t *testing.T) {
+	sub := newFixture(t)
+	sub.write("s.go", "package s\n")
+	sub.commit("sub first")
+	f := newFixture(t)
+	f.write("a.go", "package a\n")
+	f.state(f.commit("first"))
+	f.git("-c", "protocol.file.allow=always", "submodule", "add", "-q", sub.repo.Root, "sub")
+	f.commit("state and submodule")
+	status := func() []string {
+		brief, err := Resume(f.repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return brief.Status
+	}
+	f.write("sub/s.go", "package s // edited\n")
+	f.write("sub/new.go", "package s\n")
+	if got := status(); len(got) != 0 {
+		t.Errorf("dirty submodule counted: %v", got)
+	}
+	f.git("-C", "sub", "-c", "user.email=t@x", "-c", "user.name=t", "commit", "-q", "-am", "moved")
+	if got := status(); len(got) != 1 || !strings.Contains(got[0], "sub") {
+		t.Errorf("moved submodule commit not counted: %v", got)
+	}
+	f.git("-C", "sub", "reset", "-q", "--hard", "HEAD~1")
+	f.write("untracked.go", "package a\n")
+	f.write(".compass/context/current-state.md", "# edited handoff\n")
+	if got := strings.Join(status(), "\n"); !strings.Contains(got, "untracked.go") || !strings.Contains(got, "current-state.md") {
+		t.Errorf("untracked or .compass/ edit not counted: %q", got)
+	}
+}

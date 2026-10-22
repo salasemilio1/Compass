@@ -20,7 +20,8 @@ claude plugin marketplace add salasemilio1/Compass
 claude plugin install compass@compass
 ```
 
-The plugin's `SessionStart` hook injects the resume brief, `Stop` asks for an updated
+The plugin's `SessionStart` hook injects the resume brief (a short stub with the objective and next
+step when current-state is current and the tree is clean on a fresh start), `Stop` asks for an updated
 current-state once when code was committed after it, and `PreCompact` asks once before a manual
 `/compact`. Inside Claude Code the agent's Bash tool has the plugin's `compass` on PATH, and the
 git pre-commit hook finds the plugin's copy on its own. For your own terminal, install a release

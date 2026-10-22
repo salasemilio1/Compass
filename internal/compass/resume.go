@@ -28,6 +28,9 @@ type Brief struct {
 	DiffStat     []string `json:"diff_stat,omitempty"`
 	Records      int      `json:"records"`
 	Unparseable  int      `json:"unparseable_records,omitempty"`
+	// StatusUnknown is true when git status failed or ran out of time, so an empty Status
+	// doesn't mean a clean tree.
+	StatusUnknown bool `json:"status_unknown,omitempty"`
 }
 
 // Resume gathers the brief. Git sections are empty outside a git repository.
@@ -82,7 +85,10 @@ func Resume(repo *Repo) (*Brief, error) {
 			}
 		}
 	}
-	if out, err := repo.Git("status", "--short", "--untracked-files=normal"); err == nil && out != "" {
+	// Submodules count only when their commit moved: their own uncommitted work isn't this repo's.
+	if out, err := repo.Git("status", "--short", "--untracked-files=normal", "--ignore-submodules=dirty"); err != nil {
+		brief.StatusUnknown = true
+	} else if out != "" {
 		brief.Status = capLines(strings.Split(out, "\n"), resumeMaxStatusLines, "git status")
 	}
 	if repo.Head() != "" {
@@ -149,7 +155,11 @@ func (b *Brief) Text(maxChars int) string {
 	}
 	writeSection("Live global records (decisions and goals with scope: global)", claims, "(none recorded with scope: global)")
 	if b.Branch != "" || b.Head != "" {
-		writeSection("Uncommitted work (git status)", b.Status, "(clean)")
+		clean := "(clean)"
+		if b.StatusUnknown {
+			clean = "(unknown: git status failed or timed out)"
+		}
+		writeSection("Uncommitted work (git status)", b.Status, clean)
 		if len(b.DiffStat) > 0 {
 			writeSection("Diff stat vs HEAD", b.DiffStat, "")
 		}
@@ -177,6 +187,66 @@ func (b *Brief) Text(maxChars int) string {
 		out = strings.ToValidUTF8(out[:maxChars-3], "") + "…"
 	}
 	return out
+}
+
+// Current reports whether current-state is known to have no code commits after it.
+func (b *Brief) Current() bool { return strings.HasPrefix(b.Freshness, "current:") }
+
+var listItem = regexp.MustCompile(`^\s*([-*+]|\d+[.)])\s+\S`)
+
+// firstStep returns the first list item of a next-steps body, else its first line of prose,
+// skipping fenced code; StubMissing when there is neither.
+func firstStep(body []string) string {
+	fenced := fencedLines(body)
+	first := ""
+	for i, line := range body {
+		text := oneLine(line)
+		if fenced[i] || text == "" {
+			continue
+		}
+		if listItem.MatchString(line) {
+			return text
+		}
+		if first == "" {
+			first = text
+		}
+	}
+	if first == "" {
+		return StubMissing
+	}
+	return first
+}
+
+// StubMissing stands in for an objective or next step current-state doesn't have.
+const StubMissing = "(none written)"
+
+// Stub renders the short form of the brief, within maxChars: the objective, the live next step
+// (the first item of the last next-steps section) and a pointer to `compass resume`. The
+// objective is cut first, since the next step is what the agent acts on.
+func (b *Brief) Stub(maxChars int) string {
+	objective, next := StubMissing, StubMissing
+	sections, _ := splitStateSections(b.CurrentState)
+	for _, section := range sections {
+		body := section.lines[min(1, len(section.lines)):]
+		switch section.rank {
+		case rankObjective:
+			if text := oneLine(strings.Join(body, " ")); text != "" {
+				objective = text
+			}
+		case rankNextSteps:
+			next = firstStep(body)
+		}
+	}
+	head := fmt.Sprintf("# compass — %s", b.Project)
+	if b.Branch != "" {
+		head += fmt.Sprintf(" (branch %s)", b.Branch)
+	}
+	tail := "Next step: " + truncateBytes(next, maxChars/2) + "\nRun `compass resume` for the rest: full current-state, live global records, recent commits.\n"
+	room := maxChars - len(head) - len("\nObjective: \n") - len(tail)
+	if room < len(StubMissing) {
+		return fitBytes(head+"\n"+tail, maxChars)
+	}
+	return head + "\nObjective: " + truncateBytes(objective, room) + "\n" + tail
 }
 
 // stateSectionRanks orders current-state sections by which to trim first: history and issues
@@ -210,19 +280,11 @@ type stateSection struct {
 	dropped bool // the whole section, heading included, is cut
 }
 
-func cutLinesMarker(count int) string { return fmt.Sprintf("… %d lines cut", count) }
-
-// cutStateSections fits current-state into max bytes, cutting the least useful text first:
-// the bottoms of Just done, Known issues, Files in play and unrecognised sections, then those
-// sections whole, then the bottom of the objective, then everything but the next steps from the
-// middle. Next steps are cut only when they alone exceed max. Text with no recognised heading
-// falls back to cutMiddle.
-func cutStateSections(text string, max int) string {
-	if len(text) <= max {
-		return text
-	}
-	sections := []*stateSection{{rank: rankPreamble}}
-	known := false
+// splitStateSections splits current-state at its H2/H3 headings (outside fences) and ranks each
+// section; known is false when no heading is recognised. Only the last next-steps section keeps
+// rankNextSteps: an earlier one is an archive or a draft, not the live list.
+func splitStateSections(text string) (sections []*stateSection, known bool) {
+	sections = []*stateSection{{rank: rankPreamble}}
 	lines := strings.Split(text, "\n")
 	fenced := fencedLines(lines)
 	for i, line := range lines {
@@ -240,8 +302,6 @@ func cutStateSections(text string, max int) string {
 		last.lines = append(last.lines, line)
 		last.keep++
 	}
-	// Only the last next-steps section is protected: an earlier one is an archive or a draft, and
-	// keeping it whole could starve the live list.
 	last := true
 	for i := len(sections) - 1; i >= 0; i-- {
 		if sections[i].rank == rankNextSteps {
@@ -251,6 +311,21 @@ func cutStateSections(text string, max int) string {
 			last = false
 		}
 	}
+	return sections, known
+}
+
+func cutLinesMarker(count int) string { return fmt.Sprintf("… %d lines cut", count) }
+
+// cutStateSections fits current-state into max bytes, cutting the least useful text first:
+// the bottoms of Just done, Known issues, Files in play and unrecognised sections, then those
+// sections whole, then the bottom of the objective, then everything but the next steps from the
+// middle. Next steps are cut only when they alone exceed max. Text with no recognised heading
+// falls back to cutMiddle.
+func cutStateSections(text string, max int) string {
+	if len(text) <= max {
+		return text
+	}
+	sections, known := splitStateSections(text)
 	if !known {
 		return fitBytes(cutMiddle(text, max, "… current-state cut here to fit …"), max)
 	}

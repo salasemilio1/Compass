@@ -61,7 +61,11 @@ malformed, or names no commit; it never restamps a real but stale anchor.
 `INDEX.md` is capped at 2,000 estimated tokens (bytes/3); every non-empty section keeps its heading
 and a pointer to what didn't fit. The resume brief is current-state, live `scope: global` records,
 the commits since current-state was written, `git status` and `git diff --stat HEAD`, each capped;
-the SessionStart hook cuts it to 9,500 characters, current-state from the middle out.
+the SessionStart hook injects it, cut to 9,500 characters by current-state section, after compaction or a
+resumed session, with uncommitted changes (submodules count only when their commit moved) or a
+failed `git status`, when an old Python compass-cli shadows the binary, or when current-state is stale or its freshness unknown;
+otherwise it injects a stub of at most 500 characters (the objective, the live next step, and a
+pointer to `compass resume`).
 
 ### AGENTS.md and CLAUDE.md
 In files the user owns, compass writes only: the block between `<!-- compass:begin ... -->` and

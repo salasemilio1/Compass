@@ -147,6 +147,9 @@ func truncateBytes(text string, max int) string {
 		return text
 	}
 	cut := max - len("…")
+	if cut < 0 {
+		return ""
+	}
 	for cut > 0 && !utf8.RuneStart(text[cut]) {
 		cut--
 	}
