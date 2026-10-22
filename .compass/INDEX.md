@@ -16,6 +16,7 @@ Records below are live; search all of .compass/ with `rg -i <term> .compass/`.
 - [0012-staleness-is-code-commits-after-current-state](decisions/0012-staleness-is-code-commits-after-current-state.md) — current-state is stale when code commits exist after the later of its in-history anchor and its last commit; stale warns locally and fails only CI (--require-fresh)
 
 ## experiments
+- [2026-10-22-retrieval-q2-keywords](experiments/2026-10-22-retrieval-q2-keywords.md) — Blind graded query set for decision retrieval: do ranking hygiene and a record-side keywords line close the gap to BM25's ceiling?
 - [2026-10-22-one-choice-rerun](experiments/2026-10-22-one-choice-rerun.md) — Targeted Codex re-run of decision 0018: the tax-base choice gets its own record instead of folding into integer cents
 - [2026-10-22-decision-recording-rerun](experiments/2026-10-22-decision-recording-rerun.md) — Targeted Codex re-run of decision 0017: trivia no longer recorded, real decisions still recorded with a body, no rounding regression
 - [2026-10-22-codex-core-operations-eval](experiments/2026-10-22-codex-core-operations-eval.md) — Codex eval of compass's core operations (orient, handoff, drift, decision write, decision read) against no-compass arms, after the scope cut
