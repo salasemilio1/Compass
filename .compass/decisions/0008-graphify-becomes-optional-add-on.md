@@ -1,3 +1,8 @@
+---
+claim: "graphify moves from default-installed+enforced to opt-in only (`COMPASS_WITH_GRAPHIFY=1`); a week under decisions/0005's forced-routing guard produced under 5 real uses despite the tool working well…"
+supersedes:
+  - "0001"
+---
 # 0008 — graphify becomes an opt-in add-on, not part of the default install
 
 Date: 2026-07-10

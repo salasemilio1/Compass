@@ -1,20 +1,29 @@
-<!-- compass-spec-version: 1 -->
 # Agent instructions
 
-This repo uses the compass protocol for agent memory. Before substantial work:
-1. Read `.compass/INDEX.md` — the retrieval map.
-2. Read `.compass/context/current-state.md` — where the work stands and what's next (if present).
-
-At task end, run the wrap-up workflow (git-diff-first, human-reviewed) to capture knowledge back into
-`.compass/`. Never write `.compass/` silently.
-
-[graphify](https://github.com/safishamsi/graphify) is an optional, opt-in structural navigation layer
-(not installed by default — see README.md). If `graphify-out/graph.json` happens to exist, prefer
-`graphify query "<question>"` over grepping for "what calls X" / "where does Y live" style questions.
-compass stays the source of curated intent; graphify is read-only reference material, never written or
-modified by compass workflows.
-
-If asked how many tokens the session has used, run
-`python3 ~/.claude/tools/session-context/session_status.py` (installed globally, works from any repo)
-instead of estimating — it reads the session's transcript for exact API-billed usage. A `Stop` hook
-(`session-context-nudge.py`) already nudges toward `/wrap-up` once usage crosses 75%, once per session.
+<!-- compass:begin (managed by `compass init`; edits inside are overwritten) -->
+## Project memory (compass)
+- **Start:** run `compass resume` before anything else. It prints where the work stands
+  (`.compass/context/current-state.md`), the live project-wide decisions, and uncommitted work.
+  Don't rediscover what it already tells you; `.compass/INDEX.md` maps the rest.
+- **Before changing behaviour,** search the records: `rg -il <words> .compass/` lists the files that mention the words.
+- **Rewrite current-state** (whole, never patched, at most 80 lines) after a commit, before a long
+  step, and before you stop. It is last known intent: the objective and the next step(s), never a
+  plan (a plan lives with the task: a PR, an issue, a scratch file). Set its `Commit:` line to
+  the output of `git rev-parse HEAD`; never type a hash from memory. Usage limits hit
+  mid-task: the next agent resumes from it.
+- **Where current-state disagrees with git or the user's current prompt,** git and the prompt win;
+  rewrite it.
+- `.compass/context/` holds standing context (conventions, environment), not plans.
+- **Record a decision** when you pick between real alternatives and a later agent could
+  reasonably undo it (the rejected option looks simpler, or the reason lies outside the code):
+  `compass record decision --claim "..." --premise "..." --body-file -`, the body saying why and
+  which alternatives were rejected. A choice the code or a comment explains is not a decision.
+  One choice per record, and its claim names that choice.
+- **Supersede only to replace.** Records are never edited once committed. Pass
+  `--supersedes <id>` only when that record's claim is no longer true as written; the new claim
+  then states the whole current answer (keep `--global` if the old one had it). A choice that
+  adds to or builds on a decision still in force is a new record citing it (`--premise decision:<id>`).
+- **Decisions are the current best answer, not law.** To change one, propose it and address its
+  premises.
+- **Comment the why** in code; compass holds what code and git can't.
+<!-- compass:end -->

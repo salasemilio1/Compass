@@ -1,3 +1,6 @@
+---
+claim: "init-compass's mechanical scaffolding moves to a real Click CLI (cli/), fixing the template-path bug by construction; warm-up/wrap-up stay markdown skills (judgment-heavy, weak fit for a CLI)"
+---
 # 0007 — extract init-compass's mechanical scaffolding into a real CLI
 
 Date: 2026-07-08

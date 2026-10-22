@@ -1,0 +1,12 @@
+{
+  "name": "compass",
+  "owner": { "name": "Emilio Salas" },
+  "plugins": [
+    {
+      "name": "compass",
+      "source": "./plugin",
+      "description": "Project memory a fresh agent resumes from: injects `compass resume` at session start and asks for current-state before stopping.",
+      "version": "0.3.0"
+    }
+  ]
+}

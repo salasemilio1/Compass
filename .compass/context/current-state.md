@@ -1,35 +1,24 @@
 # current state
 
-Date: 2026-07-10
-Commit: df7f6eec5a05ad736774c883ba95612798efe02f
+Date: 2026-10-22
+Commit: 0f350a57cb0f7054783843753ce40fdfe8667773
 
-## Where things stand
-Compass is `main`, steady-state, maintenance-mode. This session closed out the prior session's full
-backlog: graphify moved from default-installed+enforced to an opt-in add-on (decisions/0008, after a
-week of forced-routing enforcement still produced under 5 real uses), learnings-dedup stage 3 was
-verified end-to-end against the real `fastembed` model, the four stray backup symlinks under
-`~/.claude/` were deleted, and context-mode was confirmed working as a cross-agent MCP server in
-Cursor (in addition to Claude Code).
-
-## Known issues / things to remember
-- graphify is now opt-in only (`COMPASS_WITH_GRAPHIFY=1 ./install.sh`, or install it directly). The
-  `PreToolUse` routing guard no longer has a graphify-specific rule — broad searches always route to
-  `ctx_execute` now.
-- `install.sh`'s context-mode install command was fixed this session — it previously referenced a
-  nonexistent npm package (`@anthropic-ai/mcp-server-context-mode`, 404). Now installs the real
-  `context-mode` package and registers it via `claude mcp add context-mode -- context-mode`.
-- `~/.cursor/mcp.json` (global, on this machine) now registers `context-mode` for Cursor — confirmed
-  showing up as an MCP server there.
-- `install.sh` hard-requires `python3` (hook registration) and benefits from `uv`/`pipx`/`pip`
-  (compass CLI) and `npm` (context-mode) — all degrade to a warning, never a hard failure. `node` is
-  no longer required for context-mode (fixed to use `npm install -g` instead of `npx`).
-- `graphify-out/` and `.compass/learnings/.embedding-cache.json` are gitignored/regenerable.
-- `.git/hooks/pre-commit` backstop (runs `compass-check.sh` check-only) is installed in this repo.
+## Objective
+Ship compass v3 as a narrow tool that owns only the why, the why-not and where-we-are
+(positioning.md "Scope"; decisions 0015 scope cut, 0016 current-state is last known intent).
+The work is stacked on PR #2 (branch `claude/go-rewrite-74db42`); it is not
+merged or released. The Codex eval of the core operations
+(experiments/2026-10-22-codex-core-operations-eval.md) passed 4 of 5 bars; its fixes are
+decisions 0017 and 0018; 0019 adds the search instruction.
 
 ## Next steps
-1. Commit this session's changes (graphify opt-in, dedup verification, context-mode fix) — currently
-   staged, not yet committed.
-2. No other backlog items remain from prior sessions — this session closed all of them.
-3. Compass stays maintenance-mode: fix real breakage as it's found, don't proactively expand scope.
-   If graphify's usage picture changes on a future, larger repo, that's new evidence — don't
-   re-add it to compass's default path without it.
+1. **Watch decision reads in real use:** the block now says to search the records with `rg` before
+   changing behaviour (decision 0019; it took buried decisions from 3/9 to 9/9 in the
+   retrieval-at-scale eval, branch `claude/retrieval-experiment-0cc627`, not merged). Build a
+   keyword `compass find` over live records only if a run reverses a decision because the target
+   was buried in `rg` output or a superseded record misled it.
+2. **Emilio:** review PR #2 and its CI (verify-plugin, smoke on ubuntu and macos,
+   `check --require-fresh`); after merge tag `v0.3.0` and test `go install ...@latest`.
+3. **Emilio:** `uv tool uninstall compass-cli` (it still shadows the Go binary; doctor's warning
+   stays until then); remove the v2 hooks, skills and session tools from `~/.claude` (this repo no
+   longer holds their source) and the compass-workflow section of `~/.claude/CLAUDE.md`.

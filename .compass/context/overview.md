@@ -1,29 +1,32 @@
+---
+claim: "what compass is (v3: one Go binary plus the .compass/ format) and the repo layout"
+---
 # overview
 
-Date: 2026-07-04
+Date: 2026-10-22
 
-compass is an in-repo agent-memory protocol for Claude Code. A repo "has a compass" when it contains a
-`.compass/` directory following `SPEC.md`. The goal: orient any agent cheaply from the repo instead of
-from conversation history, so sessions can be disposable.
+compass keeps a project's working memory in the repo, in `.compass/`, so agent sessions are
+disposable: a fresh agent runs `compass resume` (or gets the brief from the SessionStart hook) and
+continues from current-state instead of from conversation history. v3 is one static Go binary; the
+contract is the `.compass/` format in `SPEC.md`. Positioning and
+scope: [positioning.md](positioning.md); the binary and plugin: decisions 0013 and 0015.
 
 ## Repo layout
-- `SPEC.md` — the protocol contract (categories, INDEX.md format, lifecycle, sharing model)
-- `template/` — the `.compass/` scaffold `init-compass` copies into a target repo
-- `skills/{warm-up,wrap-up,init-compass}/SKILL.md` — the three slash commands
-- `hooks/compass-session-start.sh` — SessionStart hook, nudges agents to warm up when `.compass/` exists
-- `install.sh` — symlinks skills/hook into `~/.claude/`, idempotent, optionally installs context-mode
-  and graphify
+- `cmd/compass/` — the CLI entry point: argument parsing and exit codes, nothing else
+- `internal/compass/` — the core, the only code that touches `.compass/`: `check`, `index`,
+  `record`, `resume`, `init`, `doctor`, current-state freshness (`state.go`)
+- `internal/hook/` — Claude Code hook adapters (SessionStart brief or stub, Stop, PreCompact,
+  git pre-commit) over the core
+- `plugin/` — what the Claude Code marketplace installs: manifest, `hooks/hooks.json`, the sh
+  launcher in `bin/`, committed reproducible binaries in `libexec/` (decision 0013)
+- `.claude-plugin/marketplace.json` — the repo as its own marketplace, pointing at `plugin/`
+- `Makefile` — `test`, `build` (to `bin/`), `plugin`, `verify-plugin`, `dist`, `smoke`
+- `.github/workflows/` — CI (Go tests, verify-plugin, smoke, `compass check`) and the
+  tag-triggered release
+- `tests/` — `smoke.sh` runs the shipped binaries through the launcher with no Go on PATH
+- `SPEC.md`, `README.md`, `AGENTS.md` — the format contract, install/use, the agent contract
 
-## Three-layer model (on the `graphify-integration` branch, unmerged as of 2026-07-06)
-This repo is piloting [graphify](https://github.com/safishamsi/graphify) as an optional third layer
-alongside compass and context-mode:
-- **graphify** — auto-derived code structure ("what calls what, where does X live"), regenerated from
-  the code itself. compass only uses graphify's deterministic mode (`graphify update <path>`): tree-sitter
-  for code, regex for markdown structure/links. No LLM, no API key, no network call. See `decisions/0001-graphify-deterministic-only.md` for why.
-- **context-mode** — sandboxes large tool output (diffs, test runs) so it doesn't consume the session
-  window.
-- **compass** (this repo) — curated, human-reviewed narrative memory: why decisions were made, what
-  changed and why, project status.
-
-compass never reads or writes `graphify-out/`; it's optional reference material an agent may consult for
-mechanical lookups, same trust tier as reading source directly (see `SPEC.md`).
+## Neighbours
+compass is the curated "why and where are we" layer. context-mode keeps large tool output out of
+the session window; graphify or an LSP maps code
+structure. compass never reads or writes `graphify-out/`.

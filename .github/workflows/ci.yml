@@ -1,28 +1,41 @@
 name: CI
 
-# Runs the test suite on every push and every PR, on all branches -- this repo has no
+# Runs the Go test suite on every push and every PR, on all branches -- this repo has no
 # main-only gate yet (see .compass/decisions), so catching regressions early on feature
-# branches like graphify-integration matters more than gating main specifically.
+# branches matters more than gating main specifically.
 on:
   push:
   pull_request:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  go:
+    strategy:
+      matrix:
+        # ubuntu runs the linux-amd64 plugin binary, macos the darwin-arm64 one.
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
+      # Full history: compass check resolves current-state's Commit: anchor and counts the code
+      # commits after it, which a shallow clone can't.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # uv provides both the Python runtime and an ephemeral pytest install (--with pytest
-      # below) -- no separate setup-python/pip step needed. Also lets the dedup suite's one
-      # real-model integration test run for real instead of self-skipping (see its docstring).
-      - uses: astral-sh/setup-uv@v3
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
 
-      - name: Run bash test suite
-        run: bash tests/run_tests.sh
+      - name: Unit tests
+        run: make test
 
-      - name: Run python test suite
-        run: uv run --with pytest pytest tests/ -v
+      - name: Committed plugin binaries match the source
+        if: matrix.os == 'ubuntu-latest'
+        run: make verify-plugin
 
-      - name: Run compass CLI test suite
-        run: uv run --project cli --with pytest pytest cli/tests -v
+      # The shipped binaries, through the launcher, with no Go on PATH.
+      - name: Smoke test
+        run: sh tests/smoke.sh
+
+      # A pull request that changes code must leave current-state current.
+      - name: compass check (this repo)
+        run: plugin/bin/compass check ${{ github.event_name == 'pull_request' && '--require-fresh' || '' }}

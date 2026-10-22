@@ -1,4 +1,5 @@
 # CLAUDE.md
 
-This repo uses the compass protocol. Read `.compass/INDEX.md` first — see `AGENTS.md` for the full
-behavioral contract.
+See `AGENTS.md` for the behavioral contract.
+
+This repo keeps project memory in `.compass/`: run `compass resume` first (see the compass block in AGENTS.md).
