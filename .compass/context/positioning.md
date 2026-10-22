@@ -177,8 +177,50 @@ there is no `stats` command and no status-line counter.
 - Delivery's measures (under- and over-feeding, coverage, flag fatigue) live in
   [delivery-plan.md](delivery-plan.md).
 
+## Scope: what a compass does (2026-10-22)
+Compass is a compass, not a map or a guide. It tells an agent **where the project is, why it is
+shaped this way, and which way is next**, then leaves it to navigate the code itself. It orients;
+it does not walk the route. When the agent reaches ground where a past choice matters, it supplies
+the why and the why-not, and nothing else.
+
+Every question about a codebase already has an owner. Compass owns only the ones nobody else does:
+
+| Question | Owner | Tense |
+|---|---|---|
+| Who | Git: author, co-authors, PR reviewers | past |
+| When | Git (compass records take their dates from it) | past |
+| Where | The code tree; git for which paths changed. "What calls this" is a view of the code (graphify, LSP), not a store | present |
+| What it does | Code | present |
+| What it should do | Tests | present |
+| What changed | Git | past |
+| How | Code; how to use it, the README | present |
+| Why this line | Comments | present |
+| Why this change | Commit message, PR | past |
+| **Why the system is shaped this way** | **Compass decisions**: reasons that span many commits, which no single commit owns | standing |
+| **Why not** | **Compass decisions**: rejected alternatives; code shows only the path taken | standing |
+| **Where we are, what's next** | **Compass current-state** | future |
+
+Git can answer every question for one change, in the past tense, scattered through history; it
+can't answer what holds across commits or where the work is going. That is compass's whole remit.
+
+**What follows from the scope** (the core eval's gaps, by owner):
+- **A specified task ignores compass.** Correct: the prompt already says where to go. The
+  SessionStart stub (≤500 chars) stays out of the way unless the session resumes or has
+  unfinished work.
+- **Discovery didn't get cheaper.** Finding code is a where/what question, owned by the code, `rg`,
+  an LSP or graphify. Compass's part is the why-not at the right file, which is
+  [delivery-plan.md](delivery-plan.md) and stays gated on its eval.
+- **Handoff cost.** Mostly the receiving agent's own exploration; compass's part is a short brief
+  that says what not to re-read.
+- **A session cut off mid-step.** Progress lives in git (small commits whose messages say what and
+  why, plus the uncommitted diff). current-state is **last known intent**: the objective and the
+  next step, never a step-by-step plan, which would bloat it and go stale the moment the work
+  changes direction. A plan is task tracking and lives with the task (a PR description, an issue, a
+  scratch file). Where current-state and git disagree, git and the user's current prompt win, and
+  the disagreement itself tells the next agent the work drifted.
+
 ## What compass doesn't do
-Task tracking, code summaries, shrinking tool output (context-mode does that), code-structure maps
+Discovery of code (see the scope table), task tracking, code summaries, shrinking tool output (context-mode does that), code-structure maps
 (graphify or an LSP does that), restating git history, and **session policy**: token nudges, hard
 context ceilings and cost stats are a separate tool (today `tools/session-context/`), not memory.
 
