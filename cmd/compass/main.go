@@ -270,6 +270,11 @@ func runRecord(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	// Read before writing: once the new record exists, the targets are no longer live.
+	docs, _, err := compass.LoadDocs(repo.Dir)
+	if err != nil {
+		return err
+	}
 	path, err := compass.Record(repo, request)
 	var refused *compass.RecordError
 	if errors.As(err, &refused) {
@@ -281,6 +286,24 @@ func runRecord(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	// Agents have left the skeleton unfilled; saying so now reaches them before any commit does.
 	if compass.EmptyBody(request.Body) {
 		fmt.Fprintf(stderr, "compass: %s has only headings: write why it holds before committing\n", path)
+	}
+	// Agents folded a new choice into an existing decision and superseded it, retiring a claim
+	// that still held; naming what stops being current reaches them before any commit does.
+	retired := map[string]bool{}
+	for _, target := range request.Supersedes {
+		old := compass.Resolve(docs, target)
+		if retired[old.ID] {
+			continue
+		}
+		retired[old.ID] = true
+		if !old.Live() {
+			fmt.Fprintf(stderr, "compass: %s was already superseded by %s; supersede the live record instead, or check will warn supersedes-forked\n", old.ID, strings.Join(old.SupersededBy, " and "))
+			continue
+		}
+		fmt.Fprintf(stderr, "compass: %s is retired, its claim no longer current: %q. Supersede only if that is untrue as written; a new choice gets its own record\n", old.ID, old.Claim)
+		if old.Global() && !request.Global {
+			fmt.Fprintf(stderr, "compass: %s was scope: global and %s is not, so resume stops delivering it; pass --global to keep it\n", old.ID, path)
+		}
 	}
 	if *asJSON {
 		return writeJSON(stdout, map[string]string{"path": path})

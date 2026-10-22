@@ -132,6 +132,7 @@ func Check(repo *Repo, options CheckOptions) ([]Finding, error) {
 		}
 	}
 	findings = append(findings, checkSupersessionCycles(docs)...)
+	findings = append(findings, checkSupersessionForks(docs)...)
 	findings = append(findings, checkCurrentState(repo, options, git)...)
 	findings = append(findings, checkAgentsBlock(repo)...)
 
@@ -176,6 +177,47 @@ func checkRef(repo *Repo, doc *Doc, ref string, git bool) string {
 		}
 	}
 	return fmt.Sprintf("ref %q: no such path (relative to the repo root, .compass/, or this record)", ref)
+}
+
+// checkSupersessionForks warns when a record's successors end in more than one live record, as two
+// branches that each replaced it leave after a merge, even once one branch's record was itself
+// replaced: two current answers, and nothing says which wins.
+func checkSupersessionForks(docs []*Doc) []Finding {
+	byID := map[string]*Doc{}
+	for _, doc := range docs {
+		byID[doc.ID] = doc
+	}
+	var findings []Finding
+	for _, doc := range docs {
+		if doc.Live() {
+			continue
+		}
+		ends, seen := map[string]bool{}, map[string]bool{doc.ID: true}
+		pending := append([]string(nil), doc.SupersededBy...)
+		for len(pending) > 0 {
+			id := pending[0]
+			pending = pending[1:]
+			successor := byID[id]
+			if successor == nil || seen[id] {
+				continue
+			}
+			seen[id] = true
+			if successor.Live() {
+				ends[id] = true
+			}
+			pending = append(pending, successor.SupersededBy...)
+		}
+		var live []string
+		for id := range ends {
+			live = append(live, id)
+		}
+		if len(live) > 1 {
+			sort.Strings(live)
+			findings = append(findings, Finding{Severity: SeverityWarn, Code: "supersedes-forked", Path: ".compass/" + doc.Path,
+				Message: fmt.Sprintf("superseded by %s, all live: two current answers (parallel branches?); record one that supersedes them all", strings.Join(live, " and "))})
+		}
+	}
+	return findings
 }
 
 func checkSupersessionCycles(docs []*Doc) []Finding {

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -311,7 +312,8 @@ func LoadDocs(compassDir string) ([]*Doc, []Finding, error) {
 	sort.Slice(docs, func(i, j int) bool { return docs[i].Path < docs[j].Path })
 	for _, doc := range docs {
 		for _, target := range doc.Supersedes {
-			if old := Resolve(docs, target); old != nil && old != doc {
+			// v2 prose and repeated --supersedes can name one record several times.
+			if old := Resolve(docs, target); old != nil && old != doc && !slices.Contains(old.SupersededBy, doc.ID) {
 				old.SupersededBy = append(old.SupersededBy, doc.ID)
 			}
 		}

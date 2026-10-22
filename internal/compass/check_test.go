@@ -63,6 +63,32 @@ func TestCheckFindsSupersessionCycles(t *testing.T) {
 	}
 }
 
+// Two live records replacing one (two merged branches) warn; a chain, or a later record that
+// replaces both, leaves one current answer and doesn't.
+func TestCheckWarnsWhenTwoLiveRecordsSupersedeOne(t *testing.T) {
+	f := newFixture(t)
+	f.state(f.commit("init"))
+	f.record("decisions/0001-a.md", "claim: a")
+	f.record("decisions/0002-b.md", "claim: b\nsupersedes: [0001]")
+	f.record("decisions/0003-c.md", "claim: c\nsupersedes: [0001]")
+	f.clean()
+	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"warn:supersedes-forked"}) {
+		t.Errorf("forked: got %v", got)
+	}
+	// A chain on one branch doesn't hide the fork: 0002 and 0004 are both current.
+	f.record("decisions/0004-d.md", "claim: d\nsupersedes: [0003]")
+	f.clean()
+	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"warn:supersedes-forked"}) {
+		t.Errorf("fork behind a chain: got %v", got)
+	}
+	// One record naming the same target twice is one successor, not a fork.
+	f.record("decisions/0005-e.md", "claim: e\nsupersedes: [0002, 0004, 0004, decisions/0004-d.md]")
+	f.clean()
+	if got := codes(f.check(CheckOptions{})); len(got) != 0 {
+		t.Errorf("fork resolved by 0005: got %v", got)
+	}
+}
+
 func TestCheckFlagsAStaleIndexAndFixRegeneratesIt(t *testing.T) {
 	f := newFixture(t)
 	f.state(f.commit("init"))
@@ -261,6 +287,9 @@ func TestAgentsBlockSaysGitAndThePromptWin(t *testing.T) {
 
 func TestAgentsBlockNarrowsWhenToRecordADecision(t *testing.T) {
 	for _, want := range []string{
+		"One choice per record, and its claim names that choice.",
+		"only when that record's claim is no longer true as written",
+		"A choice that\n  adds to or builds on a decision still in force is a new record citing it",
 		"when you pick between real alternatives and a later agent could\n  reasonably undo it",
 		"A choice the code or a comment explains is not a decision.",
 		"--body-file -",

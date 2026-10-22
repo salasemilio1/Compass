@@ -31,7 +31,11 @@ const AgentsBlock = agentsBegin + `
   reasonably undo it (the rejected option looks simpler, or the reason lies outside the code):
   ` + "`compass record decision --claim \"...\" --premise \"...\" --body-file -`" + `, the body saying why and
   which alternatives were rejected. A choice the code or a comment explains is not a decision.
-  Records are never edited once committed; a later record supersedes one (` + "`--supersedes <id>`" + `).
+  One choice per record, and its claim names that choice.
+- **Supersede only to replace.** Records are never edited once committed. Pass
+  ` + "`--supersedes <id>`" + ` only when that record's claim is no longer true as written; the new claim
+  then states the whole current answer (keep ` + "`--global`" + ` if the old one had it). A choice that
+  adds to or builds on a decision still in force is a new record citing it (` + "`--premise decision:<id>`" + `).
 - **Decisions are the current best answer, not law.** To change one, propose it and address its
   premises.
 - **Comment the why** in code; compass holds what code and git can't.

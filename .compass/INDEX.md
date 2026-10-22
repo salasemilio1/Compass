@@ -8,6 +8,7 @@ Records below are live; search all of .compass/ with `rg -i <term> .compass/`.
 - [2026-10-21-disposable-sessions](goals/2026-10-21-disposable-sessions.md) — Disposable sessions: any agent, Claude or not, resumes the work without a discovery phase
 
 ## decisions
+- [0018-one-choice-per-record](decisions/0018-one-choice-per-record.md) — One choice per record, its claim naming it; supersede only when the old claim is untrue, and record says what it retires
 - [0017-narrow-decision-recording](decisions/0017-narrow-decision-recording.md) — Record a decision only for real alternatives a later agent could undo, with its why; an empty-bodied record warns
 - [0016-current-state-is-last-known-intent](decisions/0016-current-state-is-last-known-intent.md) — current-state is last known intent: objective and next steps only, never a plan; git and the user's current prompt win over it
 - [0015-scope-cut](decisions/0015-scope-cut.md) — compass owns only the why, the why-not and where-we-are: v2 skills, hooks, session tools, learnings and layout-drift are cut; restates 0014 as built

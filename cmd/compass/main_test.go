@@ -121,3 +121,25 @@ func TestHookSessionStartPrintsJSON(t *testing.T) {
 		t.Errorf("%d %s", code, out)
 	}
 }
+
+// Superseding retires a claim, so record names it; dropping --global also stops delivery, so
+// record says that too, and keeping --global keeps quiet about it.
+func TestRecordWarnsWhatASupersedeRetires(t *testing.T) {
+	inRepo(t)
+	call("", "init", "--no-git-hook")
+	call("why\n", "record", "decision", "--claim", "Amounts are cents", "--global", "--body-file", "-")
+	code, _, stderr := call("why\n", "record", "decision", "--claim", "Amounts are cents; floats only inside percentages", "--supersedes", "0001", "--body-file", "-")
+	if code != 0 || !strings.Contains(stderr, `0001-amounts-are-cents is retired, its claim no longer current: "Amounts are cents"`) ||
+		!strings.Contains(stderr, "pass --global to keep it") {
+		t.Errorf("supersede without --global: %d %q", code, stderr)
+	}
+	code, _, stderr = call("why\n", "record", "decision", "--claim", "Amounts are int64 cents", "--global", "--supersedes", "0002", "--body-file", "-")
+	if code != 0 || !strings.Contains(stderr, `is retired, its claim no longer current: "Amounts are cents; floats only inside percentages"`) || strings.Contains(stderr, "--global") {
+		t.Errorf("supersede of a local record: %d %q", code, stderr)
+	}
+	// 0001 is already retired: superseding it again would fork, so record points at the live one.
+	code, _, stderr = call("why\n", "record", "decision", "--claim", "Cents again", "--supersedes", "0001", "--supersedes", "0001", "--body-file", "-")
+	if code != 0 || strings.Count(stderr, "0001-amounts-are-cents was already superseded by 0002-") != 1 || strings.Contains(stderr, "is retired") {
+		t.Errorf("supersede of a retired record: %d %q", code, stderr)
+	}
+}
