@@ -219,6 +219,10 @@ func checkCurrentState(repo *Repo, options CheckOptions, git bool) []Finding {
 		findings = append(findings, Finding{Severity: SeverityError, Code: "current-state-too-long", Path: path,
 			Message: fmt.Sprintf("%d lines, cap %d: keep only now and next; decisions and results go in records", state.Lines, CurrentStateMaxLines)})
 	}
+	if !state.HasNextSteps {
+		findings = append(findings, Finding{Severity: SeverityWarn, Code: "next-steps-missing", Path: path,
+			Message: "no `## Next steps` with content: the next agent won't know what to do first"})
+	}
 	for _, file := range state.FilesInPlay {
 		if !repo.exists(file) {
 			findings = append(findings, Finding{Severity: SeverityError, Code: "file-in-play-missing", Path: path,

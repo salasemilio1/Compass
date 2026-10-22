@@ -85,11 +85,11 @@ func TestCheckCurrentState(t *testing.T) {
 	f.clean()
 
 	f.write(".compass/context/current-state.md", "# current state\n")
-	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"error:anchor-missing"}) {
+	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"error:anchor-missing", "warn:next-steps-missing"}) {
 		t.Errorf("no anchor: %v", got)
 	}
 	f.write(".compass/context/current-state.md", "Commit: HEAD\n")
-	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"error:anchor-malformed"}) {
+	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"error:anchor-malformed", "warn:next-steps-missing"}) {
 		t.Errorf("malformed anchor: %v", got)
 	}
 	f.state(head, "gone.go", "*.md", "https://x.y/z")
@@ -97,8 +97,36 @@ func TestCheckCurrentState(t *testing.T) {
 		t.Errorf("missing file in play (globs and URLs skipped): %v", got)
 	}
 	f.write(".compass/context/current-state.md", "Commit: "+head+"\n"+strings.Repeat("line\n", CurrentStateMaxLines))
-	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"error:current-state-too-long"}) {
+	if got := codes(f.check(CheckOptions{})); !reflect.DeepEqual(got, []string{"error:current-state-too-long", "warn:next-steps-missing"}) {
 		t.Errorf("over the cap: %v", got)
+	}
+}
+
+// Next steps are what a fresh agent acts on first; the heading matches like Files in play does.
+func TestCheckNextSteps(t *testing.T) {
+	f := newFixture(t)
+	head := f.commit("init")
+	f.clean()
+	for text, missing := range map[string]bool{
+		"## Next steps\n1. go\n":                         false,
+		"### NEXT STEPS\n- go\n":                         false,
+		"## next steps  \n\n1. go\n":                     false,
+		"## Next steps:\n1. go\n":                        false,
+		"## Next steps (in order)\n1. go\n":              false,
+		"```\n## Next steps\n1. go\n```\n":               true,
+		"## Next stepsize\n1. go\n":                      true,
+		"## Just done\n```go\nx\n## Next steps\n1. go\n": false,
+		"```\n~~~\n```\n## Next steps\n1. go\n":          false,
+		"## Next steps\n```\n```\n":                      true,
+		"## Next steps\n\n## Known issues\n":             true,
+		"## Next steps\n":                                true,
+		"## Next\n1. go\n":                               true,
+		"# Next steps\n1. go\n":                          true,
+	} {
+		f.write(".compass/context/current-state.md", "Commit: "+head+"\n"+text)
+		if got := hasCode(f.check(CheckOptions{}), "next-steps-missing"); got != missing {
+			t.Errorf("%q: next-steps-missing %v, want %v", text, got, missing)
+		}
 	}
 }
 

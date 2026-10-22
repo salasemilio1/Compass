@@ -16,6 +16,7 @@ var (
 	anchorLine     = regexp.MustCompile(`^Commit:\s*(\S*)\s*$`)
 	anchorHash     = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
 	filesInPlay    = regexp.MustCompile(`(?i)^#{2,3}\s+files in play\s*$`)
+	nextSteps      = regexp.MustCompile(`(?i)^#{2,3}\s+next steps\b`)
 	codeSpan       = regexp.MustCompile("`([^`]+)`")
 	markdownLink   = regexp.MustCompile(`\]\(([^)\s]+)\)`)
 	anyHeading     = regexp.MustCompile(`^#{1,3}\s`)
@@ -30,6 +31,8 @@ type CurrentState struct {
 	Anchor      string
 	HasAnchor   bool
 	FilesInPlay []string
+	// HasNextSteps is true when a "## Next steps" heading has at least one non-blank line under it.
+	HasNextSteps bool
 }
 
 // ReadCurrentState returns nil, nil when the file does not exist.
@@ -44,28 +47,38 @@ func (r *Repo) ReadCurrentState() (*CurrentState, error) {
 	return ParseCurrentState(string(data)), nil
 }
 
-// ParseCurrentState extracts the anchor and the paths listed under "## Files in play". A path
-// is the first `code span` or link target on a list item; globs and URLs are skipped.
+// ParseCurrentState extracts the anchor, whether next steps are written, and the paths listed
+// under "## Files in play". A path is the first `code span` or link target on a list item; globs
+// and URLs are skipped. Headings inside ``` or ~~~ fences are content, not headings.
 func ParseCurrentState(text string) *CurrentState {
 	state := &CurrentState{Text: text}
 	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
 	state.Lines = len(lines)
-	inFiles := false
-	for _, line := range lines {
+	fenced := fencedLines(lines)
+	inFiles, inNext := false, false
+	for i, line := range lines {
+		inFence := fenced[i]
 		if m := anchorLine.FindStringSubmatch(line); m != nil && !state.HasAnchor {
 			state.HasAnchor = true
 			state.Anchor = m[1]
 			continue
 		}
-		if filesInPlay.MatchString(line) {
-			inFiles = true
+		if !inFence && filesInPlay.MatchString(line) {
+			inFiles, inNext = true, false
 			continue
 		}
-		if anyHeading.MatchString(line) {
-			inFiles = false
+		if !inFence && nextSteps.MatchString(line) {
+			inFiles, inNext = false, true
+			continue
+		}
+		if !inFence && anyHeading.MatchString(line) {
+			inFiles, inNext = false, false
 			continue
 		}
 		trimmed := strings.TrimSpace(line)
+		if inNext && trimmed != "" && fenceMarker(line) == "" {
+			state.HasNextSteps = true
+		}
 		if !inFiles || !(strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ")) {
 			continue
 		}
@@ -82,6 +95,40 @@ func ParseCurrentState(text string) *CurrentState {
 		state.FilesInPlay = append(state.FilesInPlay, path)
 	}
 	return state
+}
+
+// fenceMarker returns "```" or "~~~" when line opens or closes a fenced code block, else "".
+func fenceMarker(line string) string {
+	trimmed := strings.TrimSpace(line)
+	for _, marker := range []string{"```", "~~~"} {
+		if strings.HasPrefix(trimmed, marker) {
+			return marker
+		}
+	}
+	return ""
+}
+
+// fencedLines marks the lines inside fenced code blocks, fence lines included, so a `##` there
+// isn't taken for a heading. A fence closes only with its own marker; when one is still open at
+// the end, the fences are ignored rather than hiding every heading after a typo.
+func fencedLines(lines []string) []bool {
+	fenced := make([]bool, len(lines))
+	open := ""
+	for i, line := range lines {
+		marker := fenceMarker(line)
+		opens := open == "" && marker != ""
+		if opens {
+			open = marker
+		}
+		fenced[i] = open != ""
+		if !opens && marker == open {
+			open = ""
+		}
+	}
+	if open != "" {
+		return make([]bool, len(lines))
+	}
+	return fenced
 }
 
 // AnchorWellFormed reports whether the Commit: value looks like an abbreviated or full hash.
