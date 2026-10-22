@@ -6,10 +6,8 @@
 compass stays the source of curated intent; graphify is read-only reference material, never written or
 modified by compass workflows.
 
-If asked how many tokens the session has used, run
-`python3 ~/.claude/tools/session-context/session_status.py` (installed globally, works from any repo)
-instead of estimating — it reads the session's transcript for exact API-billed usage. A `Stop` hook
-(`session-context-nudge.py`) already nudges toward `/wrap-up` once usage crosses 75%, once per session.
+Session-tooling helpers (token-usage reporters, wrap-up nudges) are optional and agent-specific; use
+whatever your environment provides. Nothing in this repo's contract depends on them.
 
 <!-- compass:begin (managed by `compass init`; edits inside are overwritten) -->
 ## Project memory (compass)

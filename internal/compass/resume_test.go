@@ -43,6 +43,12 @@ func TestResumeBrief(t *testing.T) {
 			t.Errorf("brief lacks %q:\n%s", want, text)
 		}
 	}
+	// Line 2 tells the agent what it can skip, so it doesn't spend its first turns re-reading.
+	if lines := strings.Split(text, "\n"); len(lines) < 2 ||
+		!strings.HasPrefix(lines[1], "This brief already contains current-state.md") ||
+		!strings.Contains(lines[1], "INDEX.md is for lookup, not for reading at start") {
+		t.Errorf("brief line 2 doesn't say what to skip:\n%s", text)
+	}
 	for _, unwanted := range []string{"old global", "local only"} {
 		if strings.Contains(text, unwanted) {
 			t.Errorf("brief delivers %q, which is superseded or not global", unwanted)

@@ -114,7 +114,7 @@ func (b *Brief) Text(maxChars int) string {
 	if b.Branch != "" {
 		fmt.Fprintf(&head, " (branch %s)", b.Branch)
 	}
-	head.WriteString("This brief already contains current-state.md in full and the live global records: don't re-read them.\n")
+	head.WriteString("\nThis brief already contains current-state.md and the live global records: don't re-read them. .compass/INDEX.md is for lookup, not for reading at start.\n")
 	if b.Head != "" {
 		fmt.Fprintf(&head, "HEAD: %s\n", b.Head)
 	}
