@@ -13,8 +13,11 @@
 - **Where current-state disagrees with git or the user's current prompt,** git and the prompt win;
   rewrite it.
 - `.compass/context/` holds standing context (conventions, environment), not plans.
-- **Record a decision when it happens:** `compass record decision --claim "..." --premise "..."`.
-  Records are never edited; a later record supersedes one (`--supersedes <id>`).
+- **Record a decision** when you pick between real alternatives and a later agent could
+  reasonably undo it (the rejected option looks simpler, or the reason lies outside the code):
+  `compass record decision --claim "..." --premise "..." --body-file -`, the body saying why and
+  which alternatives were rejected. A choice the code or a comment explains is not a decision.
+  Records are never edited once committed; a later record supersedes one (`--supersedes <id>`).
 - **Decisions are the current best answer, not law.** To change one, propose it and address its
   premises.
 - **Comment the why** in code; compass holds what code and git can't.

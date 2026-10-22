@@ -35,7 +35,8 @@ refused; nested maps are ignored.
 | `refs` | no | Paths (from the repo root, from `.compass/`, or from the record) and `commit:<hash>` are checked; other `scheme:` refs belong to other tools and are not. |
 | `status` | **never** | Derived: a record is superseded when a live record's `supersedes:` names it. |
 
-A record is at most 300 lines.
+A record is at most 300 lines. A body of nothing but headings (`compass record`'s skeleton, unfilled)
+warns `record-body-empty`, and `compass record` says so on stderr when it writes one.
 
 ## current-state.md
 Last known intent, at most 80 lines: `## Objective` and `## Next steps`, never a plan (a plan
@@ -52,7 +53,7 @@ that changed current-state.md.
 `record-too-long`, `scope-invalid`, `supersedes-dangling`, `supersedes-self`, `supersedes-cycle`,
 `supersedes-ambiguous`, `ref-unresolved`, `current-state-too-long`,
 `anchor-missing`, `anchor-malformed` (errors); `current-state-missing`, `anchor-unresolved`, `next-steps-missing`,
-`agents-block-drift`, `index-stale`, `decision-number-duplicate` (warnings); `anchor-stale` (a warning, an error with
+`agents-block-drift`, `record-body-empty`, `index-stale`, `decision-number-duplicate` (warnings); `anchor-stale` (a warning, an error with
 `--require-fresh`). `--fix` regenerates the index and stamps HEAD into an anchor that is missing,
 malformed, or names no commit; it never restamps a real but stale anchor.
 

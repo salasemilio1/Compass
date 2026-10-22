@@ -76,7 +76,7 @@ func (f *fixture) state(anchor string) {
 
 func (f *fixture) record(path, frontmatter string) {
 	f.t.Helper()
-	f.write(".compass/"+path, "---\n"+frontmatter+"\n---\n# body\n")
+	f.write(".compass/"+path, "---\n"+frontmatter+"\n---\n# body\nwhy it holds\n")
 }
 
 // codes returns the finding codes, for compact assertions.

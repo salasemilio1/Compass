@@ -49,6 +49,8 @@ metadata:
 		Fields: map[string]bool{"claim": true, "date": true, "scope": true, "supersedes": true,
 			"premises": true, "refs": true, "metadata": true},
 		Lines: 14,
+		// The body is a lone heading: nothing written under the claim.
+		BodyEmpty: true,
 	}
 	if !reflect.DeepEqual(doc, want) {
 		t.Errorf("got  %+v\nwant %+v", doc, want)

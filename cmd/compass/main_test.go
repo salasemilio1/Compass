@@ -69,6 +69,16 @@ func TestInitRecordCheckResumeFlow(t *testing.T) {
 	if code != 0 || strings.TrimSpace(out) != ".compass/decisions/0001-we-ship-go.md" {
 		t.Fatalf("record: %d %q %s", code, out, stderr)
 	}
+	if strings.Contains(stderr, "only headings") {
+		t.Errorf("record with a body warned it was empty: %s", stderr)
+	}
+	// Without a body, or with headings only, the agent is told to write the why before committing.
+	for _, body := range []string{"", "## Context\n## Decision\n"} {
+		code, out, stderr := call(body, "record", "goal", "--claim", "Ship it "+strings.Repeat("x", len(body)), "--body-file", "-")
+		if code != 0 || !strings.Contains(stderr, strings.TrimSpace(out)+" has only headings") {
+			t.Errorf("record with body %q: %d %q %q", body, code, out, stderr)
+		}
+	}
 	if code, _, stderr := call("", "record", "decision", "--claim", "x", "--supersedes", "0099"); code != 2 || !strings.Contains(stderr, "not a record") {
 		t.Errorf("bad supersedes: %d %s", code, stderr)
 	}

@@ -106,6 +106,10 @@ func Check(repo *Repo, options CheckOptions) ([]Finding, error) {
 		if doc.Lines > RecordMaxLines {
 			add(SeverityError, "record-too-long", path, "%d lines, cap %d: restate it keeping every fact, or split it", doc.Lines, RecordMaxLines)
 		}
+		// A record without a claim already fails claim-missing; v2 title-only files would warn twice.
+		if doc.BodyEmpty && strings.TrimSpace(doc.Claim) != "" {
+			add(SeverityWarn, "record-body-empty", path, "nothing under the claim but headings: write why it holds")
+		}
 		if doc.Scope != "" && doc.Scope != "global" && doc.Scope != "local" {
 			add(SeverityError, "scope-invalid", path, "scope %q, expected global or local", doc.Scope)
 		}

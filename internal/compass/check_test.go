@@ -259,6 +259,50 @@ func TestAgentsBlockSaysGitAndThePromptWin(t *testing.T) {
 	}
 }
 
+func TestAgentsBlockNarrowsWhenToRecordADecision(t *testing.T) {
+	for _, want := range []string{
+		"when you pick between real alternatives and a later agent could\n  reasonably undo it",
+		"A choice the code or a comment explains is not a decision.",
+		"--body-file -",
+	} {
+		if !strings.Contains(AgentsBlock, want) {
+			t.Errorf("AgentsBlock lacks %q", want)
+		}
+	}
+	if strings.Contains(AgentsBlock, "Record a decision when it happens") {
+		t.Error("AgentsBlock still asks for a record on every choice")
+	}
+}
+
+// A record whose body is only headings (compass record's unfilled skeleton) has a claim and no
+// reasons: check warns, and a body with any prose, list or fence is enough.
+func TestCheckWarnsOnARecordWithAnEmptyBody(t *testing.T) {
+	f := newFixture(t)
+	head := f.commit("init")
+	f.state(head)
+	for body, empty := range map[string]bool{
+		"# claim\n\n## Context\n\n## Decision\n\n## Alternatives\n\n## Consequences\n": true,
+		"":                       true,
+		"\n\n   \n":              true,
+		"## Decision\nUse Go.\n": false,
+		"- one reason\n":         false,
+		"```\n# shell\n```\n":    false,
+		"<!-- TODO -->\n":        true,
+	} {
+		f.write(".compass/decisions/0001-x.md", "---\nclaim: x\n---\n"+body)
+		f.clean()
+		if got := hasCode(f.check(CheckOptions{}), "record-body-empty"); got != empty {
+			t.Errorf("body %q: record-body-empty = %v, want %v", body, got, empty)
+		}
+	}
+	// A v2 title-only file has no claim either: claim-missing says enough.
+	f.write(".compass/decisions/0001-x.md", "# Use Go\n")
+	f.clean()
+	if findings := f.check(CheckOptions{}); hasCode(findings, "record-body-empty") || !hasCode(findings, "claim-missing") {
+		t.Errorf("v2 title-only record: %v", codes(findings))
+	}
+}
+
 func TestCheckWarnsOnAgentsBlockDrift(t *testing.T) {
 	f := newFixture(t)
 	f.state(f.commit("init"))

@@ -59,7 +59,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	case "index":
 		err = runIndex(rest, stdout)
 	case "record":
-		err = runRecord(rest, stdin, stdout)
+		err = runRecord(rest, stdin, stdout, stderr)
 	case "init":
 		err = runInit(rest, stdout)
 	case "doctor":
@@ -232,7 +232,7 @@ type listFlag []string
 func (l *listFlag) String() string     { return strings.Join(*l, ",") }
 func (l *listFlag) Set(v string) error { *l = append(*l, v); return nil }
 
-func runRecord(args []string, stdin io.Reader, stdout io.Writer) error {
+func runRecord(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 	if len(args) == 0 || strings.HasPrefix(args[0], "-") {
 		return &usageError{"record: first argument is the kind: decision, goal or experiment"}
 	}
@@ -277,6 +277,10 @@ func runRecord(args []string, stdin io.Reader, stdout io.Writer) error {
 	}
 	if err != nil {
 		return err
+	}
+	// Agents have left the skeleton unfilled; saying so now reaches them before any commit does.
+	if compass.EmptyBody(request.Body) {
+		fmt.Fprintf(stderr, "compass: %s has only headings: write why it holds before committing\n", path)
 	}
 	if *asJSON {
 		return writeJSON(stdout, map[string]string{"path": path})

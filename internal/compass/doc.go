@@ -37,6 +37,8 @@ type Doc struct {
 	Lines  int
 	// SupersededBy is derived from other docs' Supersedes lists, never read from the file.
 	SupersededBy []string
+	// BodyEmpty is EmptyBody of the record's body.
+	BodyEmpty bool
 	// LegacySupersedes means Supersedes came from a v2 body line, where a 4-digit number may be a
 	// year in prose; a target that doesn't resolve is then ignored rather than reported.
 	LegacySupersedes bool
@@ -118,6 +120,7 @@ func ParseDoc(compassDir, path string) (*Doc, error) {
 		doc.Claim = strings.Join(fields["description"], " ")
 	}
 
+	doc.BodyEmpty = EmptyBody(body)
 	scanner := bufio.NewScanner(strings.NewReader(body))
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -142,6 +145,19 @@ func ParseDoc(compassDir, path string) (*Doc, error) {
 		}
 	}
 	return doc, nil
+}
+
+// EmptyBody reports whether a record body holds nothing but headings and HTML comments, such as
+// `compass record`'s skeleton left unfilled: a claim with no reasons behind it.
+func EmptyBody(body string) bool {
+	for _, line := range strings.Split(body, "\n") {
+		trimmed := strings.TrimSpace(line)
+		comment := strings.HasPrefix(trimmed, "<!--") && strings.HasSuffix(trimmed, "-->")
+		if trimmed != "" && !strings.HasPrefix(trimmed, "#") && !comment {
+			return false
+		}
+	}
+	return true
 }
 
 // splitFrontmatter separates a leading "---" block from the body. A file without one has an
