@@ -4,7 +4,6 @@ date: 2026-10-22
 premises:
   - goal:disposable-sessions
 refs:
-  - commit:51277e4
   - experiments/2026-10-22-retrieval-q2-keywords.md
 ---
 # The AGENTS.md block tells agents to search the records with rg before changing behaviour; no search command is built
