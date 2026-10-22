@@ -93,3 +93,52 @@ bootstrap 95% interval (10,000 resamples over tasks, seed 1).
 One repo, one keyword writer, one judge; Q2 is LLM-written, so it may miss how real agents
 search (the retrieval-at-scale agent runs measure that). 30 tasks bound the effect, they don't
 settle it.
+
+---
+
+# Results (2026-10-22, scored once)
+
+Built as pre-registered: 35 tasks (30 decisions, 5 non-decisions) written by Codex from the records
+alone; 140 queries by a fresh Sonnet agent from the tasks alone; keywords for all 102 decisions by
+three fresh Sonnet agents from the record and the shipping rule alone; 1,773 pooled records graded
+by 12 fresh Claude judges (method hidden, keywords stripped). Inputs, pools, grades, arms and scorer
+are fingerprinted in `tools/retrieval-q2/` (commits 4d5b65c, a61202e) before scoring. Every task
+had at least one grade-2 record. **Deviation:** judges 6 and 7 reported grading many records from
+their claim lines without reading them; both were re-run with "read every record in full" before
+any score existed, and the re-runs' grades are the ones used.
+
+| Arm | nDCG@10 | MRR (first grade 2) | recall@5 (grade 2) |
+|---|---|---|---|
+| rg | 0.365 | 0.379 | 0.521 |
+| rg+kw | 0.379 | 0.402 | 0.557 |
+| fts5 | 0.397 | 0.428 | 0.593 |
+| fts5+kw | 0.402 | 0.432 | 0.593 |
+| bm25f | 0.406 | 0.424 | 0.621 |
+| hygiene | 0.398 | 0.438 | 0.629 |
+| hygiene+kw | 0.417 | 0.447 | 0.650 |
+| blend (BM25F + potion-retrieval-32M/256) | 0.451 | 0.462 | 0.643 |
+
+Paired nDCG@10 differences, bootstrap 95% over tasks:
+- hygiene − fts5 +0.001 [−0.014, +0.016]; hygiene − bm25f −0.008 [−0.028, +0.011]
+- hygiene+kw − hygiene +0.019 [+0.007, +0.031]; fts5+kw − fts5 +0.006 [−0.002, +0.013];
+  rg+kw − rg +0.014 [+0.004, +0.026]
+- blend − bm25f +0.045 [+0.025, +0.066] (MRR +0.039 [−0.005, +0.083], r@5 +0.021 [−0.029, +0.079])
+
+Query words that appear in the target's keywords but not in its record: 17 of 357 (4.8%), so the
+task writer (Codex) and the keyword writer (Claude) barely shared vocabulary.
+
+## Verdicts
+1. **Hygiene: FAIL** (needed ≥ max(fts5, bm25f) + 0.02; got +0.001 / −0.008). The old-set
+   analysis's gains (BM25F 0.652 → 0.683) were fitted to the queries it read and did not transfer
+   to a blind set: the reason this set was built.
+2. **Keywords: FAIL** (needed +0.05 with every lookup). The effect is real but small: +0.019 with
+   hygiene and +0.014 with plain rg, both intervals above 0; +0.006 with FTS5, interval spanning 0.
+   Under the pre-registered rule the field does not ship.
+3. **Embedding blend: FAIL, narrowly** (+0.045 nDCG@10 against the bar's 0.05; MRR and recall@5
+   intervals span 0). Dropped for its 4–16 MB.
+
+## What it says
+No ranking change moved retrieval by the margin that would justify it: every lexical arm sits at
+nDCG@10 0.37–0.42, and the best non-lexical one adds 0.045. Retrieval quality of a single
+search is not where the gain is; how the agent searches is (the retrieval-at-scale agent runs
+measure that). One repo, LLM-written tasks and judges, 35 tasks.
