@@ -10,13 +10,14 @@ trap 'rm -rf "$work"' EXIT
 fail() { echo "FAIL: $*" >&2; exit 1; }
 pass() { echo "ok   $*"; }
 
-# A PATH with only system tools and compass: proves the plugin needs no Go.
+# A PATH with only system tools and compass, and a `go` that records any call: proves the plugin
+# needs no Go even where the system has one (GitHub's ubuntu image ships /usr/bin/go).
 mkdir -p "$work/bin"
 ln -s "$repo_root/plugin/bin/compass" "$work/bin/compass"
+printf '#!/bin/sh\necho "$*" >> "%s/go-called"\nexit 1\n' "$work" > "$work/bin/go" && chmod +x "$work/bin/go"
 export PATH="$work/bin:/usr/bin:/bin"
 export CLAUDE_CONFIG_DIR="$work/no-claude-config"
 export GIT_CONFIG_GLOBAL=/dev/null GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@x GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@x
-command -v go >/dev/null 2>&1 && fail "go is on the test PATH"
 compass version | grep -q '(format 3)' || fail "version through a symlinked launcher"
 pass "launcher runs through a symlink with no Go on PATH"
 
@@ -112,4 +113,5 @@ cp "$repo_root/plugin/bin/compass" "$work/broken/bin/compass"
 if "$work/broken/bin/compass" check 2> /dev/null; then fail "launcher: a CLI call must fail without a binary"; fi
 pass "launcher fails open for hooks, closed for the CLI"
 
+[ -e "$work/go-called" ] && fail "the plugin ran go: $(cat "$work/go-called")"
 echo "smoke: all passed"
