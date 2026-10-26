@@ -1,17 +1,14 @@
 # current state
 
 Date: 2026-10-26
-Commit: 5accbe7832b0d68bb660b9470656f8d26aa9c960
+Commit: 744d733eb1216a35767aaeda333d699cdb7c22a4
 
 ## Objective
-Make compass v3 trustworthy enough to rely on during a week of real work on ebay-flipper
-(2026-10-26 to 2026-10-30), then judge it from that week's transcripts on Friday.
-Decision 0019's search line now reaches Claude Code too (CLAUDE.md pointer and both brief forms);
-before this it lived only in AGENTS.md, which Claude Code doesn't load.
+Run compass v3 for a week of real work on ebay-flipper (2026-10-26 to 2026-10-30) and judge it on
+Friday against the bars in experiments/2026-10-26-v3-field-week.md.
 
 ## Next steps
-1. Signal test with Claude sessions (`claude -p`, not Codex): legacy pointer vs new pointer on a
-   copy of ebay-flipper with buried decisions.
-2. Merge, tag `v0.3.0`, install the plugin, remove the Python `compass-cli` and v2 globals,
-   migrate ebay-flipper.
-3. Commit the field-retro protocol and script before the week starts; run it on 2026-10-30.
+1. Friday 2026-10-30: run `tools/field-retro/retro.py` over the week, then the judge pass and at
+   most 5 replays (Claude subagents only, no Codex), and append the results to the field-week record.
+2. Adjust from what the week shows: a silent reversal or two means `compass find` (decision 0019);
+   a compass share over 16.8% means trimming per-session cost.
