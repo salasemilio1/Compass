@@ -164,7 +164,7 @@ func (b *Brief) Text(maxChars int) string {
 			writeSection("Diff stat vs HEAD", b.DiffStat, "")
 		}
 	}
-	fmt.Fprintf(&tail, "\nMap of all %d records: .compass/INDEX.md\n", b.Records)
+	fmt.Fprintf(&tail, "\nMap of all %d records: .compass/INDEX.md\n%s\n", b.Records, SearchRecordsLine)
 	if b.Unparseable > 0 {
 		fmt.Fprintf(&tail, "%d record(s) don't parse and were skipped: run `compass check`\n", b.Unparseable)
 	}
@@ -247,7 +247,7 @@ func (b *Brief) Stub(maxChars int) string {
 	if b.Branch != "" {
 		head += fmt.Sprintf(" (branch %s)", b.Branch)
 	}
-	tail := "Next step: " + truncateBytes(next, maxChars/2) + "\nRun `compass resume` for the rest: full current-state, live global records, recent commits.\n"
+	tail := "Next step: " + truncateBytes(next, maxChars/2) + "\n" + SearchRecordsLine + "\nRun `compass resume` for the rest: full current-state, live global records, recent commits.\n"
 	room := maxChars - len(head) - len("\nObjective: \n") - len(tail)
 	if room < len(StubMissing) {
 		return fitBytes(head+"\n"+tail, maxChars)

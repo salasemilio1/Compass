@@ -12,6 +12,11 @@ const (
 	agentsEnd   = "<!-- compass:end -->"
 )
 
+// SearchRecordsLine is decision 0019's tested instruction, word for word. Codex reads it in the
+// AGENTS.md block; Claude Code reads CLAUDE.md and the SessionStart brief instead, so the pointer
+// and both brief forms carry it too.
+const SearchRecordsLine = "**Before changing behaviour,** search the records: `rg -il <words> .compass/` lists the files that mention the words."
+
 // AgentsBlock is everything compass writes into AGENTS.md. It is the baseline for agents without
 // hooks: they learn to run `compass resume` from here.
 const AgentsBlock = agentsBegin + `
@@ -19,7 +24,7 @@ const AgentsBlock = agentsBegin + `
 - **Start:** run ` + "`compass resume`" + ` before anything else. It prints where the work stands
   (` + "`.compass/context/current-state.md`" + `), the live project-wide decisions, and uncommitted work.
   Don't rediscover what it already tells you; ` + "`.compass/INDEX.md`" + ` maps the rest.
-- **Before changing behaviour,** search the records: ` + "`rg -il <words> .compass/`" + ` lists the files that mention the words.
+- ` + SearchRecordsLine + `
 - **Rewrite current-state** (whole, never patched, at most 80 lines) after a commit, before a long
   step, and before you stop. It is last known intent: the objective and the next step(s), never a
   plan (a plan lives with the task: a PR, an issue, a scratch file). Set its ` + "`Commit:`" + ` line to
@@ -73,9 +78,13 @@ func UpsertAgentsBlock(root string) (bool, error) {
 
 // claudePointer is one plain line, not an @AGENTS.md import: many repos keep AGENTS.md as a full
 // copy of CLAUDE.md, and importing it would load the same instructions twice in every session.
-const claudePointer = "This repo keeps project memory in `.compass/`: run `compass resume` first (see the compass block in AGENTS.md)."
+const claudePointer = "This repo keeps project memory in `.compass/`: run `compass resume` first (see the compass block in AGENTS.md). " + SearchRecordsLine
 
-// EnsureClaudePointer adds the pointer to CLAUDE.md unless it already mentions `compass resume`.
+// legacyClaudePointer is the pointer before it carried SearchRecordsLine; init replaces it.
+const legacyClaudePointer = "This repo keeps project memory in `.compass/`: run `compass resume` first (see the compass block in AGENTS.md)."
+
+// EnsureClaudePointer adds the pointer to CLAUDE.md, or replaces the legacy one, unless the file
+// already mentions `compass resume` some other way.
 func EnsureClaudePointer(root string) (bool, error) {
 	path := filepath.Join(root, "CLAUDE.md")
 	data, err := os.ReadFile(path)
@@ -83,6 +92,12 @@ func EnsureClaudePointer(root string) (bool, error) {
 		return false, err
 	}
 	old := string(data)
+	if strings.Contains(old, claudePointer) {
+		return false, nil
+	}
+	if strings.Contains(old, legacyClaudePointer) {
+		return true, writeFileAtomic(path, []byte(strings.Replace(old, legacyClaudePointer, claudePointer, 1)))
+	}
 	if strings.Contains(old, "compass resume") {
 		return false, nil
 	}

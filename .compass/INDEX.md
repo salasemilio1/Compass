@@ -17,6 +17,8 @@ Records below are live; search all of .compass/ with `rg -i <term> .compass/`.
 - [0012-staleness-is-code-commits-after-current-state](decisions/0012-staleness-is-code-commits-after-current-state.md) — current-state is stale when code commits exist after the later of its in-history anchor and its last commit; stale warns locally and fails only CI (--require-fresh)
 
 ## experiments
+- [2026-10-26-v3-field-week](experiments/2026-10-26-v3-field-week.md) — v3 field week on ebay-flipper (2026-10-26 to 10-30): orientation, current-state upkeep, decision reads and overhead from real transcripts, bars set before the week
+- [2026-10-26-claude-signal-search-line](experiments/2026-10-26-claude-signal-search-line.md) — Claude signal test of the search line in CLAUDE.md and the brief: new and old arms both honour 6/6, new finds the record at call 1–2 vs 2–8; no-compass reversed the tempting task
 - [2026-10-22-retrieval-q2-keywords](experiments/2026-10-22-retrieval-q2-keywords.md) — Blind graded query set for decision retrieval: do ranking hygiene and a record-side keywords line close the gap to BM25's ceiling?
 - [2026-10-22-one-choice-rerun](experiments/2026-10-22-one-choice-rerun.md) — Targeted Codex re-run of decision 0018: the tax-base choice gets its own record instead of folding into integer cents
 - [2026-10-22-decision-recording-rerun](experiments/2026-10-22-decision-recording-rerun.md) — Targeted Codex re-run of decision 0017: trivia no longer recorded, real decisions still recorded with a body, no rounding regression
