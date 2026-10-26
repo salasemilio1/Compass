@@ -62,8 +62,9 @@ type output struct {
 	HookSpecificOutput *hookSpecificOutput `json:"hookSpecificOutput,omitempty"`
 }
 
-// SessionStartStubMaxChars bounds the short brief, preface included.
-const SessionStartStubMaxChars = 500
+// SessionStartStubMaxChars bounds the short brief, preface included. It was 500 before the stub
+// carried SearchRecordsLine (~125 chars); the line is added room, not taken from the objective.
+const SessionStartStubMaxChars = 640
 
 // SessionStart injects the resume brief: the full one when the agent is likely mid-task or the
 // state can't be trusted (after compaction or a resumed session, with uncommitted changes, or

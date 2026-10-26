@@ -203,7 +203,7 @@ can't answer what holds across commits or where the work is going. That is compa
 
 **What follows from the scope** (the core eval's gaps, by owner):
 - **A specified task ignores compass.** Correct: the prompt already says where to go. The
-  SessionStart stub (≤500 chars) stays out of the way unless the session resumes or has
+  SessionStart stub (≤640 chars) stays out of the way unless the session resumes or has
   unfinished work.
 - **Discovery didn't get cheaper.** Finding code is a where/what question, owned by the code, `rg`,
   an LSP or graphify. Compass's part is the why-not at the right file, which is
