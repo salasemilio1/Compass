@@ -387,8 +387,43 @@ func TestBriefStubSkipsTemplatePlaceholders(t *testing.T) {
 			t.Errorf("stub lacks %q:\n%s", want, stub)
 		}
 	}
-	if strings.Contains(stub, "<") {
+	if strings.Contains(strings.Replace(stub, SearchRecordsLine, "", 1), "<") {
 		t.Errorf("stub shows a placeholder:\n%s", stub)
+	}
+}
+
+// Decision 0019's line reaches Claude Code only through CLAUDE.md and the SessionStart brief, so
+// every path carries it word for word, as AGENTS.md does.
+func TestSearchRecordsLineReachesEveryAgent(t *testing.T) {
+	brief := &Brief{Project: "p", CurrentState: "## Objective\nship\n## Next steps\n1. act\n"}
+	for name, text := range map[string]string{
+		"AGENTS.md block":   AgentsBlock,
+		"CLAUDE.md pointer": claudePointer,
+		"stub":              brief.Stub(500),
+		"full brief":        brief.Text(10000),
+	} {
+		if !strings.Contains(text, SearchRecordsLine) {
+			t.Errorf("%s lacks the search line:\n%s", name, text)
+		}
+	}
+}
+
+// compass init upgrades the pre-0019 CLAUDE.md pointer in place and leaves the rest of the file.
+func TestEnsureClaudePointerReplacesLegacy(t *testing.T) {
+	root := t.TempDir()
+	old := "# CLAUDE.md\n\nHouse rules.\n\n" + legacyClaudePointer + "\n"
+	if err := os.WriteFile(filepath.Join(root, "CLAUDE.md"), []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := EnsureClaudePointer(root); err != nil || !changed {
+		t.Fatalf("changed=%v err=%v", changed, err)
+	}
+	data, _ := os.ReadFile(filepath.Join(root, "CLAUDE.md"))
+	if want := "# CLAUDE.md\n\nHouse rules.\n\n" + claudePointer + "\n"; string(data) != want {
+		t.Errorf("got %q, want %q", data, want)
+	}
+	if changed, _ := EnsureClaudePointer(root); changed {
+		t.Error("second run changed the file")
 	}
 }
 
