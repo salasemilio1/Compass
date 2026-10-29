@@ -26,11 +26,12 @@ Records below are live; search all of .compass/ with `rg -i <term> .compass/`.
 - [2026-10-21-v3-core-eval](experiments/2026-10-21-v3-core-eval.md) — v3 core eval on an ebay-flipper copy: resume cost, discovery overhead with and without compass, and a Claude-to-Codex mid-task handoff
 
 ## context
+- [2026-10-29-ebay-flipper-v3-days-1-4](context/2026-10-29-ebay-flipper-v3-days-1-4.md) — v3 field days 1–4 on ebay-flipper: the hooks went dark for 5 of 8 sessions (a dangling ~/.claude/settings.json symlink), nothing noticed; AGENTS.md fallback carried orientation
 - [overview](context/overview.md) — what compass is (v3: one Go binary plus the .compass/ format) and the repo layout
 - [positioning](context/positioning.md) — v3 goal (disposable sessions, cross-agent resume), staleness rule (nothing maintained in place, expiry by event), and the core: check/index/record/resume + AGENTS.md block + hooks
 - [delivery-plan](context/delivery-plan.md) — gated: file/symbol, prompt and caller triggers for decision delivery; four-arm trigger eval with design/held-out sets
 - [v3-direction](context/v3-direction.md) — portability (§1) still holds; retrieval B–E deferred, hygiene replaced, session economics moved out
-- [2026-10-15-ebay-flipper-retro](context/2026-10-15-ebay-flipper-retro.md) — first long-run field data: 90% of cost in main sessions, 78% above 300k context; 103 KB INDEX; logs/learnings mostly never re-read; model-by-task grades
+- … 1 more, not listed to stay under the index cap: `ls .compass/context/`
 
 ## superseded (12, not delivered)
 0001-graphify-deterministic-only → 0008-graphify-becomes-optional-add-on; 0002-close-audited-gaps-with-deterministic-scripts → 0006-copy-not-symlink-global-install; 0003-learnings-dedup-always-runs-stage3 → 0011-dedup-by-index-judge-not-embeddings; 0004-transcript-based-tool-efficiency-measurement → 0015-scope-cut; 0005-deterministic-tool-routing-guard → 0015-scope-cut; 0006-copy-not-symlink-global-install → 0010-go-binary-as-claude-code-plugin; 0007-compass-init-as-cli → 0015-scope-cut; 0008-graphify-becomes-optional-add-on → 0015-scope-cut; 0009-environment-category-and-repo-layout-check → 0015-scope-cut; 0010-go-binary-as-claude-code-plugin → 0014-go-binary-as-built; 0011-dedup-by-index-judge-not-embeddings → 0015-scope-cut; 0014-go-binary-as-built → 0015-scop…
