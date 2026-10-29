@@ -53,7 +53,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	var err error
 	switch command {
 	case "resume":
-		err = runResume(rest, stdout)
+		err = runResume(rest, stdout, stderr, os.Getenv)
 	case "check":
 		err = runCheck(rest, stdout)
 	case "index":
@@ -125,7 +125,7 @@ func writeJSON(stdout io.Writer, value any) error {
 	return encoder.Encode(value)
 }
 
-func runResume(args []string, stdout io.Writer) error {
+func runResume(args []string, stdout, stderr io.Writer, getenv func(string) string) error {
 	flags := newFlags("resume")
 	asJSON := flags.Bool("json", false, "")
 	maxChars := flags.Int("max-chars", 0, "")
@@ -140,6 +140,7 @@ func runResume(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	warnDelivery(stderr, getenv, repo.Root)
 	if *asJSON {
 		return writeJSON(stdout, brief)
 	}
@@ -342,13 +343,14 @@ func runDoctor(args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	report := compass.Doctor(cwd, os.Getenv("PATH"))
+	report := compass.Doctor(cwd, os.Getenv)
 	if *asJSON {
 		if err := writeJSON(stdout, report); err != nil {
 			return err
 		}
 	} else {
 		fmt.Fprintf(stdout, "compass %s at %s\n", report.Version, report.Executable)
+		fmt.Fprintf(stdout, "Claude Code config: %s\n", report.ClaudeConfigDir)
 		for _, entry := range report.OnPath {
 			fmt.Fprintf(stdout, "on PATH: %s (%s)\n", entry.Path, entry.Kind)
 		}
@@ -368,6 +370,20 @@ func runDoctor(args []string, stdout io.Writer) error {
 	return nil
 }
 
+// warnDelivery prints a warning per reason Claude Code won't deliver compass, only inside Claude
+// Code (CLAUDECODE=1; git hooks inherit it from the agent's shell). In a session whose hooks are
+// off, the agent's `compass resume` or `git commit` is the only place that can say so.
+func warnDelivery(stderr io.Writer, getenv func(string) string, root string) {
+	if getenv("CLAUDECODE") != "1" {
+		return
+	}
+	cwd, _ := os.Getwd()
+	report := compass.Delivery(compass.ClaudeConfigDir(getenv), []string{cwd, root}, true)
+	for _, problem := range report.Problems {
+		fmt.Fprintf(stderr, "compass: warning: %s (run `compass doctor`; tell the user)\n", problem)
+	}
+}
+
 // runHook dispatches hook events. Claude Code events always exit 0 (a failing hook must not block
 // the agent); the git pre-commit event exits 1 on check errors, which is its job.
 func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) (code int) {
@@ -384,6 +400,7 @@ func runHook(args []string, stdin io.Reader, stdout, stderr io.Writer) (code int
 			fmt.Fprintf(stderr, "compass: %s\n", err)
 			return 1
 		}
+		warnDelivery(stderr, os.Getenv, repo.Root)
 		findings, err := compass.PreCommit(repo)
 		if err != nil {
 			fmt.Fprintf(stderr, "compass: %s\n", err)

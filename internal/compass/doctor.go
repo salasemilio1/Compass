@@ -77,12 +77,16 @@ type DoctorReport struct {
 	Version    string      `json:"version"`
 	Executable string      `json:"executable"`
 	OnPath     []PathEntry `json:"on_path"`
-	Problems   []string    `json:"problems"`
-	Notes      []string    `json:"notes"`
+	// ClaudeConfigDir is the Claude Code config dir the delivery checks read.
+	ClaudeConfigDir string   `json:"claude_config_dir"`
+	Problems        []string `json:"problems"`
+	Notes           []string `json:"notes"`
 }
 
 // Doctor inspects the installation and, when start is inside a compass project, the project.
-func Doctor(start, pathList string) *DoctorReport {
+// getenv supplies PATH, CLAUDECODE, CLAUDE_CONFIG_DIR and HOME, so tests never read the real ones.
+func Doctor(start string, getenv func(string) string) *DoctorReport {
+	pathList := getenv("PATH")
 	report := &DoctorReport{Version: Version}
 	report.Executable, _ = os.Executable()
 	report.OnPath = FindOnPath(pathList)
@@ -115,6 +119,14 @@ func Doctor(start, pathList string) *DoctorReport {
 	}
 
 	repo, err := Find(start)
+	dirs := []string{start}
+	if err == nil {
+		dirs = append(dirs, repo.Root)
+	}
+	delivery := Delivery(ClaudeConfigDir(getenv), dirs, getenv("CLAUDECODE") == "1")
+	report.ClaudeConfigDir = delivery.ConfigDir
+	report.Problems = append(report.Problems, delivery.Problems...)
+	report.Notes = append(report.Notes, delivery.Notes...)
 	if err != nil {
 		report.Notes = append(report.Notes, "not inside a compass project")
 		return report
@@ -127,17 +139,56 @@ func Doctor(start, pathList string) *DoctorReport {
 	case HasErrors(findings):
 		report.Problems = append(report.Problems, "compass check reports errors (run it for details)")
 	}
-	if repo.IsGit() {
-		if path, err := repo.Git("rev-parse", "--git-path", "hooks/pre-commit"); err == nil {
-			if !filepath.IsAbs(path) {
-				path = filepath.Join(repo.Root, path)
-			}
-			if data, err := os.ReadFile(path); err != nil || !strings.Contains(string(data), "compass hook pre-commit") {
-				report.Notes = append(report.Notes, "the git pre-commit hook doesn't run compass (compass init installs it when none exists)")
-			}
-		}
+	if repo.IsGit() && !PreCommitRunsCompass(repo) {
+		report.Notes = append(report.Notes, "the git pre-commit hook doesn't run compass (compass init installs it when none exists)")
 	}
 	return report
+}
+
+// PreCommitRunsCompass reports whether a commit runs `compass hook pre-commit`: from the git hook
+// itself, or from a lefthook config (lefthook's own git hook script doesn't name compass).
+func PreCommitRunsCompass(repo *Repo) bool {
+	if path, err := repo.Git("rev-parse", "--git-path", "hooks/pre-commit"); err == nil {
+		if !filepath.IsAbs(path) {
+			path = filepath.Join(repo.Root, path)
+		}
+		if data, err := os.ReadFile(path); err == nil && runsCompassPreCommit(string(data)) {
+			return true
+		}
+	}
+	for _, name := range []string{"lefthook.yml", "lefthook.yaml", ".lefthook.yml", ".lefthook.yaml"} {
+		if data, err := os.ReadFile(filepath.Join(repo.Root, name)); err == nil && lefthookRunsCompass(string(data)) {
+			return true
+		}
+	}
+	return false
+}
+
+// runsCompassPreCommit looks for the command on a line that isn't a shell or YAML comment.
+func runsCompassPreCommit(text string) bool {
+	for _, line := range strings.Split(text, "\n") {
+		if trimmed := strings.TrimSpace(line); !strings.HasPrefix(trimmed, "#") && strings.Contains(trimmed, "compass hook pre-commit") {
+			return true
+		}
+	}
+	return false
+}
+
+// lefthookRunsCompass finds the command inside the top-level pre-commit: section only, so a
+// commit-msg or pre-push entry doesn't count.
+func lefthookRunsCompass(text string) bool {
+	var section []string
+	inPreCommit := false
+	for _, line := range strings.Split(text, "\n") {
+		if line != "" && line[0] != ' ' && line[0] != '\t' && !strings.HasPrefix(line, "#") {
+			inPreCommit = strings.HasPrefix(line, "pre-commit:")
+			continue
+		}
+		if inPreCommit {
+			section = append(section, line)
+		}
+	}
+	return runsCompassPreCommit(strings.Join(section, "\n"))
 }
 
 func runQuiet(path string, args ...string) (string, error) {

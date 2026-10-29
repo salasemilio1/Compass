@@ -27,6 +27,12 @@ current-state once when code was committed after it, and `PreCompact` asks once 
 git pre-commit hook finds the plugin's copy on its own. For your own terminal, install a release
 binary as below (the plugin's cache path changes with every plugin version, so don't link to it).
 
+Check the install: `compass doctor` (in a terminal, or ask the agent to run it) reads Claude Code's
+settings and says if the plugin or its hooks won't load, for example a `~/.claude/settings.json`
+that is a symlink to a file that moved. To update: `claude plugin marketplace update compass`, then
+`claude plugin update compass@compass`, then re-run `compass init` in each repo to refresh its
+AGENTS.md block.
+
 **Without Claude Code**, from a release (macOS and Linux, arm64 and amd64):
 
 ```bash

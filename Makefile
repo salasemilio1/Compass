@@ -7,7 +7,7 @@ GOFLAGS_BUILD := -trimpath -buildvcs=false -ldflags='-s -w'
 # produce binaries that differ from CI's.
 RELEASE_TOOLCHAIN := $(shell sed -n 's/^toolchain //p' go.mod)
 
-.PHONY: test build plugin verify-plugin dist smoke clean
+.PHONY: test build plugin verify-plugin dist smoke e2e clean
 
 test:
 	go vet ./...
@@ -41,6 +41,11 @@ dist:
 	  tar -C dist -czf dist/compass_$(VERSION)_$$p.tar.gz compass_$(VERSION)_$$p && rm -rf dist/compass_$(VERSION)_$$p || exit 1; \
 	done
 	@cd dist && shasum -a 256 *.tar.gz > checksums.txt && cat checksums.txt
+
+# A fresh install through the real claude CLI (needs it on PATH; no API key). Checks the committed
+# binaries first, since that's what the plugin ships.
+e2e: verify-plugin
+	sh tests/e2e.sh
 
 smoke: plugin
 	sh tests/smoke.sh

@@ -12,7 +12,7 @@ import (
 // Version is the binary's version; the plugin manifests carry the same string and a test keeps
 // them in step. FormatVersion is the .compass/ format it reads and writes.
 const (
-	Version       = "0.3.0"
+	Version       = "0.3.1"
 	FormatVersion = 3
 )
 
@@ -38,7 +38,8 @@ if compass version 2>/dev/null | grep -q '(format [0-9]'; then
   compass=compass
 else
   # The plugin's newest copy by modification time, skipping versions Claude Code has orphaned.
-  compass=$(ls -dt "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/cache/compass/compass/*/ 2>/dev/null |
+  # Any marketplace name: cache/<marketplace>/compass/<version>/.
+  compass=$(ls -dt "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/cache/*/compass/*/ 2>/dev/null |
     while IFS= read -r dir; do
       if [ -x "${dir}bin/compass" ] && [ ! -e "${dir}.orphaned_at" ]; then
         printf '%s' "${dir}bin/compass"
@@ -148,7 +149,7 @@ func installGitHook(repo *Repo) (string, error) {
 		case string(data) == gitPreCommit:
 			return "git pre-commit hook already runs compass", nil
 		case !strings.HasPrefix(string(data), "#!/bin/sh\n# Installed by `compass init`"):
-			if strings.Contains(string(data), "compass hook pre-commit") {
+			if PreCommitRunsCompass(repo) {
 				return "git pre-commit hook already runs compass", nil
 			}
 			return "skipped git pre-commit hook: one exists; add `compass hook pre-commit` to it", nil

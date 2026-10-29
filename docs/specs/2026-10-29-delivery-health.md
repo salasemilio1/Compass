@@ -226,3 +226,33 @@ Fresh-context Opus critic, 2026-10-29. Each finding and its resolution:
     init; ignores commented lines.
 4c. Doctor returns early outside a project → user-level delivery checks run before that return.
 5.  Simpler option: none found.
+
+## Verification
+
+| Acceptance criterion | Check | Result |
+|---|---|---|
+| Each delivery problem detected from a fixture | `TestDeliveryDetectsEachBreak` (dangling symlink, invalid JSON, disabled, never enabled, disabled locally, not installed, install dir missing, stale-key-only, disableAllHooks, each v2 hook) | pass |
+| Clean fixture: no problems; unknown shapes are notes | `TestDeliveryHealthyInstallHasNoProblems`, `…UnknownShapesAreNotes`, `…WithoutClaudeCodeIntentOnlyNotes`, `…ValidSymlinkedSettingsIsFine`, `…PrecedenceIsPerKey`, `…ProjectScopeInstallCountsOnlyForItsProject`, `…BreakPassFalsePositives` | pass |
+| doctor names a dangling settings symlink | `TestDoctorNamesTheDanglingSettingsAndCountsLefthook`; e2e step 2 | pass |
+| resume warns only in Claude Code, stdout unchanged | `TestResumeWarnsOnBrokenDeliveryOnlyInClaudeCode` (fails with the call removed: checked) | pass |
+| pre-commit warns, never blocks for it | `TestPreCommitWarnsButDoesNotBlockOnBrokenDelivery` | pass |
+| AGENTS block carries the doctor line; init refreshes it | `TestInitRefreshesTheAgentsBlockWithTheDoctorLine` | pass |
+| lefthook counts as the git hook | `TestDoctorNamesTheDanglingSettingsAndCountsLefthook`, `TestLefthookRunsCompass` | pass |
+| `make e2e` passes; fails without SessionStart | `tests/e2e.sh` locally (claude 2.1.241), step 3 automates the control | pass |
+| CI runs e2e on ubuntu | `e2e` job, claude 2.1.300 pinned (flag verified on 2.1.300) | pending: the PR's CI run |
+| SessionStart hook adds no cost | the hook path doesn't call `Delivery` (main.go hook dispatch; break pass confirmed) | pass |
+| `make test`, `verify-plugin`, smoke, `compass check` | run 2026-10-29 | pass |
+| ebay-flipper gets the brief; doctor clean | headless session after the plugin update | pending: after merge and `claude plugin update` |
+
+**Break pass** (fresh Opus, ran the real CLI on temp installs): 3 false positives and 1 false
+negative, all reproduced and fixed with regression tests: a UTF-8 BOM read as invalid JSON; an
+unknown registry shape reported as "not installed" (now skips the install checks);
+`disableAllHooks` not resolved by precedence; a stale `compass@old: true` masking a disabled
+installed key. It also found Claude Code may run hooks from outside `installPath` with a directory
+marketplace, so a missing `hooks/hooks.json` there is now a note; a missing install directory stays
+a problem. Checked and fine: trailing-slash config dir, `/private/var` vs `/var` project paths,
+pre-commit latency (35 ms healthy).
+
+**Not verified:** managed settings and `--plugin-dir`/`--settings` (stated limits); that the agent's
+Bash tool sets `CLAUDECODE=1` in every Claude Code surface (observed in the desktop app only);
+Linux e2e until CI runs.

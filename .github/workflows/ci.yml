@@ -39,3 +39,18 @@ jobs:
       # A pull request that changes code must leave current-state current.
       - name: compass check (this repo)
         run: plugin/bin/compass check ${{ github.event_name == 'pull_request' && '--require-fresh' || '' }}
+
+  # A fresh install through the real claude CLI: the plugin installs, its SessionStart hook delivers
+  # the brief, and a broken settings.json is named by doctor and resume. No API key needed.
+  e2e:
+    needs: go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install the claude CLI (pinned)
+        run: npm install -g @anthropic-ai/claude-code@2.1.300
+      - name: End-to-end install test
+        run: sh tests/e2e.sh

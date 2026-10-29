@@ -80,3 +80,29 @@ refreshed).
 `compass hook pre-commit` checks `.compass/` as staged (paths in refs must be staged
 too), stages the index generated from the staged records, and exits 1 on errors.
 
+
+## Delivery checks
+Claude Code fails quietly when it can't load the plugin: an unreadable user `settings.json` (a
+dangling symlink, invalid JSON) means no hooks and no plugins, and the session doesn't say so. The
+SessionStart hook can't report its own absence, so three other places do, reading (never writing)
+`$CLAUDE_CONFIG_DIR` or `~/.claude` (`settings.json`, `plugins/installed_plugins.json`) and the
+project's `.claude/settings.json` and `.claude/settings.local.json` at cwd and the repo root:
+- `compass doctor` lists each problem with its fix, names the config dir it read, and exits 1.
+- `compass resume` and `compass hook pre-commit`, inside Claude Code (`CLAUDECODE=1`, inherited by
+  git hooks), print `compass: warning: …` per problem to stderr; resume's stdout and pre-commit's
+  exit status are unchanged.
+- The AGENTS.md block tells agents the brief arrives on its own in Claude Code (a message starting
+  `compass:`) and to run `compass doctor` and tell the user when it didn't.
+
+Problems: user settings unreadable; `disableAllHooks: true`; v2 hook registrations
+(`tool-routing-guard`, `session-context-nudge`, `compass-session-start`); and, where Claude Code is
+meant to run compass (`CLAUDECODE=1`, a `compass@` key in settings, or an installed entry), the
+plugin not installed (user scope, or project/local scope for this project), its install directory
+missing, or its installed key enabled nowhere (per-key precedence: user, project, local; a stale
+`compass@<old marketplace>: true` enables nothing). `disableAllHooks` resolves by the same
+precedence. A UTF-8 BOM is accepted, as Claude Code accepts it. Unknown shapes (an unreadable plugin
+registry skips the install checks), malformed project settings, a missing `hooks/hooks.json` under
+the install path, and a missing plugin without that intent are notes.
+Not seen: `--plugin-dir`/`--settings` flags and managed settings. compass names the fix and never
+edits Claude Code's config. `tests/e2e.sh` installs the plugin into a clean config dir with the
+`claude` CLI and checks delivery, the dangling-symlink failure, and a control that must fail.
