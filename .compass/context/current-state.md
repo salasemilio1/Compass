@@ -1,14 +1,20 @@
 # current state
 
-Date: 2026-10-26
-Commit: 744d733eb1216a35767aaeda333d699cdb7c22a4
+Date: 2026-10-29
+Commit: 1a02fb640690095fd6a117def07e32f9ee357988
 
 ## Objective
-Run compass v3 for a week of real work on ebay-flipper (2026-10-26 to 2026-10-30) and judge it on
-Friday against the bars in experiments/2026-10-26-v3-field-week.md.
+Make compass notice when Claude Code won't deliver it (the 10-28/29 ebay-flipper outage: a dangling
+~/.claude/settings.json symlink turned off every hook and the plugin, silently), and prove a fresh
+install works end to end. Spec and plan: docs/specs/2026-10-29-delivery-health.md (branch
+fix/hooks-go-dark). Field week on ebay-flipper continues to 2026-10-30.
 
 ## Next steps
-1. Friday 2026-10-30: run `tools/field-retro/retro.py` over the week, then the judge pass and at
-   most 5 replays (Claude subagents only, no Codex), and append the results to the field-week record.
-2. Adjust from what the week shows: a silent reversal or two means `compass find` (decision 0019);
-   a compass share over 16.8% means trimming per-session cost.
+1. Fold the plan critique into docs/specs/2026-10-29-delivery-health.md, then implement:
+   internal/compass/delivery.go (read-only checks), doctor/resume/pre-commit callers, AGENTS block
+   line, version 0.3.1, tests/e2e.sh + CI job (claude CLI 2.1.300).
+2. Verify (unit, smoke, e2e, break pass), open the PR with pr-intent.
+3. Friday 2026-10-30: field-retro over the week with `--former-path ~/Dev/Misc/personal-dashboard`
+   (repo moved), judge pass and at most 5 replays; append to experiments/2026-10-26-v3-field-week.md,
+   reporting 1a/3a with and without the 5 dark sessions. Interim read:
+   context/2026-10-29-ebay-flipper-v3-days-1-4.md.
