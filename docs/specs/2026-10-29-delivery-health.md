@@ -44,8 +44,8 @@ starts a real Claude Code session.
      settings file) or not installed (`installed_plugins.json` has no `compass@compass`), or its
      install path is missing `hooks/hooks.json`;
    - v2 leftovers: hook commands naming `tool-routing-guard`, `session-context-nudge` or
-     `compass-session-start` in any settings file, or a v2 hook command whose file is missing or
-     not executable.
+     `compass-session-start` in any settings file (a name match covers the missing or
+     non-executable v2 file that failed 639 times; a general hook-file audit is not compass's job).
    A check whose input is missing or unparseable for reasons other than the above yields a note.
 2. **`compass doctor`** prints every delivery problem with its fix (the file, and the command or
    edit to make), and exits 1 when any exists, as it does now for its other problems.
@@ -187,3 +187,42 @@ Unit tests per acceptance criterion 1–6; `make test`, `make verify-plugin`, `t
 `make e2e` locally, then once by hand with SessionStart removed from `plugin/hooks/hooks.json` to
 see e2e fail; CI green on the PR; a headless session in ebay-flipper after updating the plugin; a
 break pass by a fresh subagent.
+
+## Critique
+
+Fresh-context Opus critic, 2026-10-29. Each finding and its resolution:
+
+1a. v2 hook file missing/not executable unchecked → spec amended: the name match covers the case
+    seen; auditing every hook's file is session tooling (0015), not compass.
+1b. Behaviour 8 not in plan → v2 hooks already moved to `~/.claude/backups/compass-v2-hooks-2026-10-29/`;
+    ebay-flipper doctor + headless session are explicit verification steps after the plugin update.
+1c. `marketplace.json` and `version_test.go` → bump both manifests; the test guards it.
+2a. AGENTS line quoted only the full-brief marker; the stub starts "compass: current-state is
+    current…" → the line says "a message starting `compass:`".
+2b. Malformed project settings were a problem in the plan, a note in the spec → note (Claude Code
+    skips the file; user scope still delivers).
+2c. `--include-hook-events` unverified on 2.1.300 → verified (`claude -p --help` on 2.1.300).
+3a. Non-Claude users would fail doctor forever → delivery problems only with evidence of intent
+    (a `compass@` key in settings, an installed entry, or `CLAUDECODE=1`); otherwise notes.
+3b. "Last file decides" mixed keys → precedence per key; pass if any key resolves true;
+    non-boolean values are notes.
+3c. `installed_plugins.json` scopes ignored → entries count when `scope` is user, or project/local
+    with `projectPath` equal to the project root or cwd; others ignored.
+3d. `--plugin-dir`/`--settings` and launch dir ≠ compass root → project settings read from both
+    cwd and repo root; `--plugin-dir`/`--settings` stated as a limit (doctor can't see a CLI flag).
+3e. Wrong config dir → doctor prints the config dir it checked.
+3f. Torn settings write during `claude plugin install` → re-read once after 100 ms before calling
+    JSON invalid.
+3g. e2e could pass while broken → assert on problem text, never doctor's exit code; `make e2e`
+    depends on `verify-plugin`; run nested `claude` with `env -u CLAUDECODE -u ANTHROPIC_API_KEY`
+    and the `CLAUDE_CODE_*` vars unset; automate the negative check (a temp copy of the plugin with
+    SessionStart removed must yield no brief). `CLAUDECODE=1` in the agent's Bash tool is observed
+    in this session, not tested by e2e (stated).
+3h. main_test resume/hook tests would read the real `~/.claude` → `warnDelivery` takes env and
+    config dir as arguments; tests set `CLAUDE_CONFIG_DIR` to a temp dir.
+4a. git hook fallback hard-codes `cache/compass/compass` → glob `cache/*/compass/*/` so a renamed
+    marketplace still finds the binary.
+4b. Lefthook detection in a third place, substring too loose → one helper shared by doctor and
+    init; ignores commented lines.
+4c. Doctor returns early outside a project → user-level delivery checks run before that return.
+5.  Simpler option: none found.
