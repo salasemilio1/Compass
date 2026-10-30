@@ -236,3 +236,65 @@ func TestDeliveryBreakPassFalsePositives(t *testing.T) {
 		}
 	})
 }
+
+func TestCompareVersions(t *testing.T) {
+	cases := []struct {
+		a, b string
+		cmp  int
+		ok   bool
+	}{
+		{"0.3.0", "0.3.1", -1, true}, {"0.3.1", "0.3.10", -1, true}, {"0.3.10", "0.3.9", 1, true},
+		{"0.3.1", "0.3.1", 0, true}, {"v0.3.1", "0.3.1", 0, true}, {"0.3", "0.3.0", 0, true},
+		{"f8c5e7a1dcb7", "0.3.1", 0, false}, {"", "0.3.1", 0, false}, {"0.3.x", "0.3.1", 0, false},
+		{"20261030", "0.3.1", 0, false}, {"1234567", "0.3.1", 0, false}, {"0.+3.1", "0.3.1", 0, false},
+		{"0.3.2-rc1", "0.3.1", 0, false}, {"0.3.1.4", "0.3.1", 0, false},
+	}
+	for _, c := range cases {
+		if cmp, ok := CompareVersions(c.a, c.b); cmp != c.cmp || ok != c.ok {
+			t.Errorf("CompareVersions(%q, %q) = %d, %v; want %d, %v", c.a, c.b, cmp, ok, c.cmp, c.ok)
+		}
+	}
+}
+
+func TestDeliveryPluginVersionIsTheHighestRealOne(t *testing.T) {
+	config, install := claudeConfig(t)
+	registry := `{"version":2,"plugins":{"compass@compass":[{"scope":"user","installPath":"` + install + `","version":"0.3.1"},` +
+		`{"scope":"user","installPath":"` + install + `","version":"0.3.10"},{"scope":"user","installPath":"` + install + `","version":"f8c5e7a1dcb7"},` +
+		`{"scope":"user","installPath":"` + install + `","version":"20261030"}]}}`
+	write(t, filepath.Join(config, "plugins", "installed_plugins.json"), registry)
+	if got := Delivery(config, nil, true).PluginVersion; got != "0.3.10" {
+		t.Fatalf("PluginVersion = %q, want 0.3.10", got)
+	}
+}
+
+func TestDoctorFlagsAnOlderGoCompassFirstOnPath(t *testing.T) {
+	config, install := claudeConfig(t)
+	write(t, filepath.Join(config, "plugins", "installed_plugins.json"),
+		`{"version":2,"plugins":{"compass@compass":[{"scope":"user","installPath":"`+install+`","version":"99.0.0"}]}}`)
+	for version, want := range map[string]bool{"0.0.1": true, "99.0.0": false, "99.1.0": false} {
+		bin := t.TempDir()
+		write(t, filepath.Join(bin, "compass"), "#!/bin/sh\n# compass\necho 'compass "+version+" (format 3)'\n")
+		os.Chmod(filepath.Join(bin, "compass"), 0o755)
+		env := map[string]string{"PATH": bin + string(os.PathListSeparator) + "/usr/bin:/bin", "CLAUDE_CONFIG_DIR": config, "HOME": t.TempDir()}
+		report := Doctor(t.TempDir(), func(key string) string { return env[key] })
+		got := false
+		for _, problem := range report.Problems {
+			got = got || strings.Contains(problem, "is compass "+version+", older than")
+		}
+		if got != want {
+			t.Errorf("version %s on PATH: flagged %v, want %v (%v)", version, got, want, report.Problems)
+		}
+	}
+}
+
+func TestCappedBufferKeepsOnlyItsLimit(t *testing.T) {
+	buffer := &cappedBuffer{limit: 8}
+	for i := 0; i < 1000; i++ {
+		if n, err := buffer.Write([]byte("compass 0.3.1 (format 3)\n")); err != nil || n != 25 {
+			t.Fatalf("Write = %d, %v; want 25, nil (a short write would fail the child's pipe)", n, err)
+		}
+	}
+	if buffer.Len() != 8 || buffer.String() != "compass " {
+		t.Fatalf("kept %d bytes %q, want the first 8", buffer.Len(), buffer.String())
+	}
+}

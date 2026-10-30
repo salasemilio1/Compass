@@ -81,7 +81,11 @@ func SessionStart(input Input, pathList, pluginRoot string) ([]byte, error) {
 		return nil, err
 	}
 	shadow := compass.ShadowingPython(pathList)
-	full := needsFullBrief(input.Source, brief, shadow)
+	var olderPath, olderVersion string
+	if shadow == "" {
+		olderPath, olderVersion = compass.ShadowingOlderGo(pathList, pluginRoot, repo.Root, compass.Version)
+	}
+	full := needsFullBrief(input.Source, brief, shadow+olderPath)
 	var preface strings.Builder
 	if full {
 		preface.WriteString("compass: this is the resume brief (`compass resume`), already loaded; don't re-run it.\n")
@@ -98,6 +102,10 @@ func SessionStart(input Input, pathList, pluginRoot string) ([]byte, error) {
 		}
 		fmt.Fprintf(&preface, "Note: `compass` on PATH is the old Python compass-cli (%s); run %s instead, and tell the user to remove it (uv tool uninstall compass-cli).\n", shadow, binary)
 	}
+	if olderPath != "" {
+		fmt.Fprintf(&preface, "Note: `compass` on PATH is %s, version %s, older than the plugin's %s; run %q for compass commands instead, and tell the user to update or remove %s.\n",
+			olderPath, olderVersion, compass.Version, filepath.Join(pluginRoot, "bin", "compass"), olderPath)
+	}
 	var text string
 	if full {
 		text = preface.String() + "\n" + brief.Text(SessionStartMaxChars-preface.Len()-1)
@@ -109,7 +117,7 @@ func SessionStart(input Input, pathList, pluginRoot string) ([]byte, error) {
 
 // needsFullBrief reports whether the agent should get the whole brief: it is likely mid-task
 // (compaction, a resumed session, uncommitted or unknown work), current-state can't be trusted, or
-// a Python compass-cli shadows the binary, whose note would crowd the stub.
+// a compass that shadows the plugin's (Python, or an older Go one), whose note would crowd the stub.
 func needsFullBrief(source string, brief *compass.Brief, shadow string) bool {
 	return source == "compact" || source == "resume" || len(brief.Status) > 0 || brief.StatusUnknown ||
 		!brief.Current() || shadow != ""

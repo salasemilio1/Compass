@@ -18,9 +18,11 @@ import (
 // session says so (ebay-flipper, 2026-10-28: a dangling symlink turned compass off for 5 sessions).
 // The SessionStart hook can't report its own absence, so resume, pre-commit and doctor do.
 type DeliveryReport struct {
-	ConfigDir string   `json:"config_dir"`
-	Problems  []string `json:"problems"`
-	Notes     []string `json:"notes"`
+	ConfigDir string `json:"config_dir"`
+	// PluginVersion is the highest version among the compass plugin installs that apply here.
+	PluginVersion string   `json:"plugin_version,omitempty"`
+	Problems      []string `json:"problems"`
+	Notes         []string `json:"notes"`
 }
 
 // v2 registered these hooks in user settings; v3 cut them (decision 0015) and nothing removes them.
@@ -136,6 +138,12 @@ func Delivery(configDir string, projectDirs []string, inClaudeCode bool) *Delive
 	// only a note; a missing install directory is a broken install.
 	installedOn := false
 	for _, entry := range installed {
+		// Directory marketplaces may record a sha or nothing; only real versions count.
+		if _, ok := CompareVersions(entry.version, "0.0"); ok {
+			if cmp, _ := CompareVersions(entry.version, report.PluginVersion); report.PluginVersion == "" || cmp > 0 {
+				report.PluginVersion = entry.version
+			}
+		}
 		if _, err := os.Stat(entry.path); err != nil {
 			report.Problems = append(report.Problems, fmt.Sprintf("the compass plugin's install directory %s is missing; reinstall it: claude plugin install compass@compass", entry.path))
 		} else if _, err := os.Stat(filepath.Join(entry.path, "hooks", "hooks.json")); err != nil {
@@ -198,7 +206,7 @@ func parseSettings(path string) (map[string]json.RawMessage, error) {
 	return values, nil
 }
 
-type installEntry struct{ key, path string }
+type installEntry struct{ key, path, version string }
 
 // installedCompass lists the compass plugin entries that apply here: user scope, or project/local
 // scope for one of projectDirs. known is false when the registry exists but can't be read or has a
@@ -217,6 +225,7 @@ func installedCompass(configDir string, projectDirs []string) (entries []install
 			Scope       string `json:"scope"`
 			ProjectPath string `json:"projectPath"`
 			InstallPath string `json:"installPath"`
+			Version     string `json:"version"`
 		} `json:"plugins"`
 	}
 	if err := json.Unmarshal(data, &registry); err != nil {
@@ -239,7 +248,7 @@ func installedCompass(configDir string, projectDirs []string) (entries []install
 					continue
 				}
 			}
-			entries = append(entries, installEntry{key, entry.InstallPath})
+			entries = append(entries, installEntry{key, entry.InstallPath, entry.Version})
 		}
 	}
 	sort.Slice(entries, func(i, j int) bool { return entries[i].path < entries[j].path })
