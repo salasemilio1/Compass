@@ -22,6 +22,9 @@ func inRepo(t *testing.T) string {
 		}
 	}
 	t.Chdir(root)
+	// Hermetic: never read the developer's Claude Code config, nor warn because this runs inside it.
+	t.Setenv("CLAUDECODE", "")
+	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
 	return root
 }
 
@@ -141,5 +144,83 @@ func TestRecordWarnsWhatASupersedeRetires(t *testing.T) {
 	code, _, stderr = call("why\n", "record", "decision", "--claim", "Cents again", "--supersedes", "0001", "--supersedes", "0001", "--body-file", "-")
 	if code != 0 || strings.Count(stderr, "0001-amounts-are-cents was already superseded by 0002-") != 1 || strings.Contains(stderr, "is retired") {
 		t.Errorf("supersede of a retired record: %d %q", code, stderr)
+	}
+}
+
+// brokenClaudeConfig points CLAUDE_CONFIG_DIR at a config whose settings.json is a dangling symlink,
+// as on ebay-flipper on 2026-10-28.
+func brokenClaudeConfig(t *testing.T) {
+	t.Helper()
+	config := t.TempDir()
+	if err := os.Symlink(config+"/gone/settings.json", config+"/settings.json"); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CLAUDE_CONFIG_DIR", config)
+}
+
+func TestResumeWarnsOnBrokenDeliveryOnlyInClaudeCode(t *testing.T) {
+	inRepo(t)
+	if code, out, stderr := call("", "init", "--no-git-hook"); code != 0 {
+		t.Fatalf("init: %d %s %s", code, out, stderr)
+	}
+	_, quietOut, _ := call("", "resume")
+	brokenClaudeConfig(t)
+	code, out, stderr := call("", "resume")
+	if code != 0 || strings.Contains(stderr, "warning") || out != quietOut {
+		t.Errorf("outside Claude Code: %d warned=%q", code, stderr)
+	}
+	t.Setenv("CLAUDECODE", "1")
+	code, out, stderr = call("", "resume")
+	if code != 0 || !strings.Contains(stderr, "compass: warning: ") || !strings.Contains(stderr, "is a symlink to") || !strings.Contains(stderr, "compass doctor") {
+		t.Errorf("inside Claude Code: %d stderr=%q", code, stderr)
+	}
+	if out != quietOut {
+		t.Errorf("the warning changed the brief on stdout")
+	}
+}
+
+func TestPreCommitWarnsButDoesNotBlockOnBrokenDelivery(t *testing.T) {
+	inRepo(t)
+	if code, out, stderr := call("", "init", "--no-git-hook"); code != 0 {
+		t.Fatalf("init: %d %s %s", code, out, stderr)
+	}
+	brokenClaudeConfig(t)
+	t.Setenv("CLAUDECODE", "1")
+	code, _, stderr := call("", "hook", "pre-commit")
+	if code != 0 || !strings.Contains(stderr, "is a symlink to") {
+		t.Errorf("pre-commit: %d %q", code, stderr)
+	}
+}
+
+func TestDoctorNamesTheDanglingSettingsAndCountsLefthook(t *testing.T) {
+	root := inRepo(t)
+	if code, out, stderr := call("", "init", "--no-git-hook"); code != 0 {
+		t.Fatalf("init: %d %s %s", code, out, stderr)
+	}
+	if err := os.WriteFile(root+"/lefthook.yml", []byte("pre-commit:\n  commands:\n    compass:\n      run: compass hook pre-commit\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	brokenClaudeConfig(t)
+	_, out, _ := call("", "doctor")
+	if !strings.Contains(out, "problem: ") || !strings.Contains(out, "is a symlink to") || !strings.Contains(out, "Claude Code config: ") {
+		t.Errorf("doctor on a dangling settings symlink: %s", out)
+	}
+	if strings.Contains(out, "pre-commit hook doesn't run compass") {
+		t.Errorf("doctor ignored lefthook.yml: %s", out)
+	}
+}
+
+func TestInitRefreshesTheAgentsBlockWithTheDoctorLine(t *testing.T) {
+	root := inRepo(t)
+	old := "<!-- compass:begin (managed by `compass init`; edits inside are overwritten) -->\nold text\n<!-- compass:end -->\n"
+	if err := os.WriteFile(root+"/AGENTS.md", []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code, out, stderr := call("", "init", "--no-git-hook"); code != 0 {
+		t.Fatalf("init: %d %s %s", code, out, stderr)
+	}
+	data, _ := os.ReadFile(root + "/AGENTS.md")
+	if !strings.Contains(string(data), "run `compass doctor` and tell the user") || strings.Contains(string(data), "old text") {
+		t.Errorf("AGENTS.md block not refreshed: %s", data)
 	}
 }

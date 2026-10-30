@@ -17,6 +17,8 @@ ln -s "$repo_root/plugin/bin/compass" "$work/bin/compass"
 printf '#!/bin/sh\necho "$*" >> "%s/go-called"\nexit 1\n' "$work" > "$work/bin/go" && chmod +x "$work/bin/go"
 export PATH="$work/bin:/usr/bin:/bin"
 export CLAUDE_CONFIG_DIR="$work/no-claude-config"
+# Run from inside Claude Code, CLAUDECODE=1 would add delivery warnings for that empty config dir.
+unset CLAUDECODE
 export GIT_CONFIG_GLOBAL=/dev/null GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@x GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@x
 compass version | grep -q '(format 3)' || fail "version through a symlinked launcher"
 pass "launcher runs through a symlink with no Go on PATH"

@@ -5,7 +5,7 @@ git history. Deterministic; no model calls. Writes a markdown report to stdout a
 --flagged, a JSONL of edits that touch something a live decision names, for the judge pass in the
 protocol (experiments/2026-10-26-v3-field-week.md).
 
-Usage: python3 -I retro.py --repo ~/Dev/Misc/personal-dashboard --since 2026-10-26 --until 2026-10-31 [--flagged out.jsonl]
+Usage: python3 -I retro.py --repo ~/Dev/Misc/personal-dashboard --since 2026-10-26 --until 2026-10-31 [--flagged out.jsonl] [--former-path OLD_PATH]
 """
 from __future__ import annotations
 
@@ -76,8 +76,11 @@ def session_rows(path: pathlib.Path, decisions: dict[str, str]) -> dict | None:
            "tokens": 0, "compass_io": 0, "all_io": 0, "flagged": [], "catches": [], "_compass_ids": set()}
     searched = False
     for event in events:
-        if "compass" in str(event.get("hookAdditionalContext", "")) or (
-                event.get("type") == "attachment" and "compass resume" in json.dumps(event.get("attachment", ""))):
+        # Only the SessionStart hook's own output counts: the AGENTS.md block that the instructions
+        # attachment carries also says "compass resume" and would count every session.
+        attachment = event.get("attachment") if event.get("type") == "attachment" else None
+        if isinstance(attachment, dict) and attachment.get("hookEvent") == "SessionStart" and (
+                "# compass resume" in json.dumps(attachment.get("content", "")) + str(attachment.get("stdout", ""))):
             row["brief"] = True
         message = event.get("message") or {}
         usage = message.get("usage") if event.get("type") == "assistant" else None
@@ -108,6 +111,9 @@ def session_rows(path: pathlib.Path, decisions: dict[str, str]) -> dict | None:
             command = args.get("command", "") if name == "Bash" else ""
             if "compass resume" in command:
                 row["resume"] = True
+            # Agents often rewrite current-state with a shell heredoc or script, not Edit/Write.
+            if "current-state.md" in command and re.search(r"write_text|\.write\(|sed -i|>>? *\S*current-state", command):
+                row["state_rewritten"] = True
             if "compass record" in command:
                 row["records"] += 1
             if "git commit" in command:
@@ -147,13 +153,18 @@ def main() -> None:
     parser.add_argument("--since", required=True)
     parser.add_argument("--until", required=True)
     parser.add_argument("--flagged")
+    # A repo that moved keeps its older transcripts under the old path's slug.
+    parser.add_argument("--former-path", action="append", default=[])
     options = parser.parse_args()
     repo = pathlib.Path(options.repo).expanduser().resolve()
     decisions = live_decisions(repo)
     projects = pathlib.Path("~/.claude/projects").expanduser()
-    files = [path for folder in projects.glob(slug(repo) + "*") for path in folder.glob("*.jsonl")]
+    paths = [repo] + [pathlib.Path(path).expanduser() for path in options.former_path]
+    files = [path for root in paths for folder in projects.glob(slug(root) + "*") for path in folder.glob("*.jsonl")]
     rows = [row for row in (session_rows(path, decisions) for path in files)
             if row and options.since <= row["start"][:10] < options.until]
+    # A session copied when a repo moves shows up under both slugs; keep one.
+    rows = list({(row["start"], row["first_prompt"]): row for row in rows}.values())
     rows.sort(key=lambda row: row["start"])
 
     edited = [row for row in rows if row["edits"]]

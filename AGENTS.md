@@ -5,6 +5,8 @@
 - **Start:** run `compass resume` before anything else. It prints where the work stands
   (`.compass/context/current-state.md`), the live project-wide decisions, and uncommitted work.
   Don't rediscover what it already tells you; `.compass/INDEX.md` maps the rest.
+  In Claude Code it arrives by itself at session start, as a message starting `compass:`; if none
+  did, run `compass doctor` and tell the user what it reports (the plugin or its hooks are off).
 - **Before changing behaviour,** search the records: `rg -il <words> .compass/` lists the files that mention the words.
 - **Rewrite current-state** (whole, never patched, at most 80 lines) after a commit, before a long
   step, and before you stop. It is last known intent: the objective and the next step(s), never a
