@@ -103,6 +103,12 @@ missing, or its installed key enabled nowhere (per-key precedence: user, project
 precedence. A UTF-8 BOM is accepted, as Claude Code accepts it. Unknown shapes (an unreadable plugin
 registry skips the install checks), malformed project settings, a missing `hooks/hooks.json` under
 the install path, and a missing plugin without that intent are notes.
+An older compass first on PATH: the agent's shell runs it, not the plugin's. The SessionStart hook
+(the plugin's binary) runs `version` on the first `compass` on its PATH when that is an absolute
+entry outside `CLAUDE_PLUGIN_ROOT` that looks like compass (Mach-O, ELF, or a script naming
+compass), at most once, 1 s timeout, its process group killed and its output capped; never one inside the project; when it is a Go compass older than the plugin's, the full brief
+says so and names the plugin's binary. Doctor flags a first Go compass older than itself or the
+installed plugin's highest version. Versions compare by dotted number; anything else never warns.
 Not seen: `--plugin-dir`/`--settings` flags and managed settings. compass names the fix and never
 edits Claude Code's config. `tests/e2e.sh` installs the plugin into a clean config dir with the
 `claude` CLI and checks delivery, the dangling-symlink failure, and a control that must fail.

@@ -12,7 +12,7 @@ import (
 // Version is the binary's version; the plugin manifests carry the same string and a test keeps
 // them in step. FormatVersion is the .compass/ format it reads and writes.
 const (
-	Version       = "0.3.1"
+	Version       = "0.3.2"
 	FormatVersion = 3
 )
 

@@ -91,7 +91,14 @@ grep -q "compass: warning: .*is a symlink to" "$work/resume.err" || fail "resume
 pass "dangling settings: no brief; doctor and resume name the cause"
 rm "$CLAUDE_CONFIG_DIR/settings.json" && mv "$work/settings.json.saved" "$CLAUDE_CONFIG_DIR/settings.json"
 
-# 3. The test can fail: a plugin whose hooks.json lacks SessionStart must deliver nothing.
+# 3. An older Go compass ahead of the plugin's on PATH: the brief says so and names the plugin's.
+mkdir -p "$work/old-bin"
+printf '#!/bin/sh\n# compass\necho "compass 0.0.1 (format 3)"\n' > "$work/old-bin/compass" && chmod +x "$work/old-bin/compass"
+PATH="$work/old-bin:$PATH" session "$work/shadowed"
+grep -q "version 0.0.1, older than the plugin's" "$work/shadowed" || fail "no older-compass note; hook output: $(cat "$work/shadowed")"
+pass "an older compass first on PATH: the brief names it and the plugin's binary"
+
+# 4. The test can fail: a plugin whose hooks.json lacks SessionStart must deliver nothing.
 rm -rf "$CLAUDE_CONFIG_DIR" && mkdir -p "$CLAUDE_CONFIG_DIR"
 copy=$work/plugin-copy
 mkdir "$copy" && cp -R "$repo_root/.claude-plugin" "$repo_root/plugin" "$copy/"

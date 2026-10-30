@@ -7,7 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -81,6 +84,7 @@ type DoctorReport struct {
 	ClaudeConfigDir string   `json:"claude_config_dir"`
 	Problems        []string `json:"problems"`
 	Notes           []string `json:"notes"`
+	staleFirst      string   // the first Go compass's version on PATH, compared after the delivery checks
 }
 
 // Doctor inspects the installation and, when start is inside a compass project, the project.
@@ -109,6 +113,9 @@ func Doctor(start string, getenv func(string) string) *DoctorReport {
 	case report.OnPath[0].Kind != "go":
 		report.Problems = append(report.Problems, fmt.Sprintf("%s is first on PATH and is not this compass", report.OnPath[0].Path))
 	}
+	if len(report.OnPath) > 0 && report.OnPath[0].Kind == "go" {
+		report.staleFirst = ParseGoVersion(report.OnPath[0].Version)
+	}
 	for _, entry := range report.OnPath[min(1, len(report.OnPath)):] {
 		if entry.Kind == "python" {
 			report.Notes = append(report.Notes, fmt.Sprintf("%s is the Python compass-cli (v2), shadowed; remove it: uv tool uninstall compass-cli", entry.Path))
@@ -126,6 +133,15 @@ func Doctor(start string, getenv func(string) string) *DoctorReport {
 	delivery := Delivery(ClaudeConfigDir(getenv), dirs, getenv("CLAUDECODE") == "1")
 	report.ClaudeConfigDir = delivery.ConfigDir
 	report.Problems = append(report.Problems, delivery.Problems...)
+	if first := report.staleFirst; first != "" {
+		newest, from := Version, "this compass"
+		if cmp, ok := CompareVersions(delivery.PluginVersion, newest); ok && cmp > 0 {
+			newest, from = delivery.PluginVersion, "the installed compass plugin"
+		}
+		if cmp, ok := CompareVersions(first, newest); ok && cmp < 0 {
+			report.Problems = append(report.Problems, fmt.Sprintf("%s is compass %s, older than %s (%s), and agents' shells run it first: update it (go install github.com/salasemilio1/Compass/cmd/compass@latest, or a release) or remove it", report.OnPath[0].Path, first, from, newest))
+		}
+	}
 	report.Notes = append(report.Notes, delivery.Notes...)
 	if err != nil {
 		report.Notes = append(report.Notes, "not inside a compass project")
@@ -196,4 +212,145 @@ func runQuiet(path string, args ...string) (string, error) {
 	defer cancel()
 	out, err := exec.CommandContext(ctx, path, args...).Output()
 	return string(out), err
+}
+
+var releaseVersion = regexp.MustCompile(`^v?\d{1,4}\.\d{1,4}(\.\d{1,4})?$`)
+
+// CompareVersions compares release versions (two or three dotted parts of at most 4 digits, so a
+// numeric git sha is never mistaken for one) part by part: 0.3.10 > 0.3.9. ok is false when either
+// isn't one, pre-releases included, and callers then never warn.
+func CompareVersions(a, b string) (cmp int, ok bool) {
+	parse := func(v string) ([]int, bool) {
+		v = strings.TrimSpace(v)
+		if !releaseVersion.MatchString(v) {
+			return nil, false
+		}
+		parts := strings.Split(strings.TrimPrefix(v, "v"), ".")
+		numbers := make([]int, len(parts))
+		for i, part := range parts {
+			numbers[i], _ = strconv.Atoi(part)
+		}
+		return numbers, true
+	}
+	x, okA := parse(a)
+	y, okB := parse(b)
+	if !okA || !okB {
+		return 0, false
+	}
+	for i := 0; i < max(len(x), len(y)); i++ {
+		var p, q int
+		if i < len(x) {
+			p = x[i]
+		}
+		if i < len(y) {
+			q = y[i]
+		}
+		if p != q {
+			if p < q {
+				return -1, true
+			}
+			return 1, true
+		}
+	}
+	return 0, true
+}
+
+var goVersionLine = regexp.MustCompile(`^compass (\S+) \(format \d+\)`)
+
+// ParseGoVersion returns the version in a Go compass's `version` output, or "".
+func ParseGoVersion(out string) string {
+	if match := goVersionLine.FindStringSubmatch(strings.TrimSpace(out)); match != nil {
+		return match[1]
+	}
+	return ""
+}
+
+// GoVersion runs `path version` and returns the version a Go compass prints, or "" when it isn't
+// one, fails, or outlives timeout (WaitDelay stops a script's child from holding the pipe open).
+func GoVersion(path string, timeout time.Duration) string {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	command := exec.CommandContext(ctx, path, "version")
+	// Its own process group, killed whole: a script's children must not outlive the hook.
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Cancel = func() error { return syscall.Kill(-command.Process.Pid, syscall.SIGKILL) }
+	command.WaitDelay = 100 * time.Millisecond
+	// The version line is short; a binary that floods stdout must not fill memory.
+	out := &cappedBuffer{limit: 4096}
+	command.Stdout = out
+	if err := command.Run(); err != nil {
+		return ""
+	}
+	return ParseGoVersion(out.String())
+}
+
+// cappedBuffer keeps the first limit bytes and discards the rest without failing the writer.
+type cappedBuffer struct {
+	bytes.Buffer
+	limit int
+}
+
+func (b *cappedBuffer) Write(p []byte) (int, error) {
+	if room := b.limit - b.Len(); room > 0 {
+		b.Buffer.Write(p[:min(room, len(p))])
+	}
+	return len(p), nil
+}
+
+// looksLikeCompass reads a file's first bytes: a Mach-O or ELF binary, or a script that names
+// compass. Anything else called compass (an app's launcher) is never run.
+func looksLikeCompass(path string) bool {
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+	head := make([]byte, 256)
+	n, _ := file.Read(head)
+	head = head[:n]
+	for _, magic := range [][]byte{{0x7f, 'E', 'L', 'F'}, {0xcf, 0xfa, 0xed, 0xfe}, {0xce, 0xfa, 0xed, 0xfe}, {0xca, 0xfe, 0xba, 0xbe}} {
+		if bytes.HasPrefix(head, magic) {
+			return true
+		}
+	}
+	return bytes.HasPrefix(head, []byte("#!")) && bytes.Contains(head, []byte("compass"))
+}
+
+// inside reports whether path resolves to somewhere under root.
+func inside(path, root string) bool {
+	real, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return false
+	}
+	base, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(base, real)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// ShadowingOlderGo returns the first compass on PATH, and its version, when it is a Go compass
+// older than own and is not the plugin's own copy (under pluginRoot). The agent's shell runs that
+// one, so it misses whatever own added. It runs at most one process, and none without a plugin
+// root, for a relative PATH entry (repo code), a Python compass-cli (ShadowingPython's case), or a
+// file that doesn't look like compass, or one inside projectRoot.
+func ShadowingOlderGo(pathList, pluginRoot, projectRoot, own string) (path, version string) {
+	if pluginRoot == "" {
+		return "", ""
+	}
+	entries := FindOnPath(pathList)
+	if len(entries) == 0 || entries[0].Kind == "python" {
+		return "", ""
+	}
+	first := entries[0].Path
+	// Never run a compass that lives in the project (direnv's $PWD/bin): that's repo code.
+	if !filepath.IsAbs(first) || inside(first, pluginRoot) || projectRoot != "" && inside(first, projectRoot) || !looksLikeCompass(first) {
+		return "", ""
+	}
+	version = GoVersion(first, time.Second)
+	if cmp, ok := CompareVersions(version, own); ok && cmp < 0 {
+		return first, version
+	}
+	return "", ""
 }

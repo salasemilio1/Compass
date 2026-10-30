@@ -1,6 +1,6 @@
 {
   "name": "compass",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Project memory a fresh agent resumes from: injects `compass resume` at session start and asks for current-state before stopping.",
   "author": { "name": "Emilio Salas" },
   "repository": "https://github.com/salasemilio1/Compass"

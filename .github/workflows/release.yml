@@ -1,14 +1,22 @@
 name: Release
 
-# Push a tag vX.Y.Z after bumping compass.Version and both plugin manifests, rebuilding the plugin
-# binaries (make plugin) and committing them. This workflow checks all of that, then publishes the
-# release archives for people and agents who install without the plugin or Go.
+# Releases v<compass.Version> when it doesn't exist yet: on every push to main, so merging a version
+# bump publishes it (`go install …@latest` and the README's release download follow tags, and stayed
+# on v0.3.0 while the plugin moved on), or on a pushed tag vX.Y.Z. Bump compass.Version and both
+# plugin manifests and rebuild the plugin binaries (make plugin) first; this workflow checks all of
+# that, then publishes the archives for people and agents who install without the plugin or Go.
 on:
   push:
+    branches: [main]
     tags: ["v*"]
 
 permissions:
   contents: write
+
+# A main push and a tag push for the same version must not both try to publish.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
@@ -22,17 +30,38 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Tag matches the binary's version
-        run: |
-          version=$(sed -n 's/.*Version *= *"\(.*\)"/\1/p' internal/compass/init.go)
-          [ "v$version" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME, compass.Version $version"; exit 1; }
-
-      - run: make test
-      - run: make verify-plugin
-      - run: sh tests/smoke.sh
-      - run: make dist
-
-      - name: Publish
+      - name: Version to release
+        id: version
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/checksums.txt --title "$GITHUB_REF_NAME" --generate-notes
+        run: |
+          version=$(sed -n 's/.*Version *= *"\(.*\)"/\1/p' internal/compass/init.go)
+          tag="v$version"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            [ "$tag" = "$GITHUB_REF_NAME" ] || { echo "tag $GITHUB_REF_NAME, compass.Version $version"; exit 1; }
+          fi
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "$tag is already released"
+          elif git rev-parse -q --verify "refs/tags/$tag" > /dev/null && [ "$(git rev-parse "$tag^{commit}")" != "$GITHUB_SHA" ]; then
+            # A tag without a release at another commit: publishing here would pair it with this
+            # commit's binaries. Fix the tag (or bump the version) by hand.
+            echo "$tag exists at $(git rev-parse --short "$tag^{commit}") with no release; not publishing $GITHUB_SHA under it"; exit 1
+          else
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.version.outputs.tag
+        run: make test
+      - if: steps.version.outputs.tag
+        run: make verify-plugin
+      - if: steps.version.outputs.tag
+        run: sh tests/smoke.sh
+      - if: steps.version.outputs.tag
+        run: make dist
+
+      - name: Publish
+        if: steps.version.outputs.tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh release create "$TAG" dist/*.tar.gz dist/checksums.txt --target "$GITHUB_SHA" --title "$TAG" --generate-notes

@@ -39,7 +39,8 @@ AGENTS.md block.
 gh release download --repo salasemilio1/Compass --pattern "compass_*_$(uname -s | tr A-Z a-z)-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz"
 ```
 
-Unpack it and put `compass` on your PATH. A file downloaded by a browser on macOS is quarantined;
+Every version merged to `main` is released (`.github/workflows/release.yml`), so the release and
+`go install …@latest` match the plugin. Unpack it and put `compass` on your PATH. A file downloaded by a browser on macOS is quarantined;
 clear it with `xattr -d com.apple.quarantine compass`. Or, with Go installed:
 
 ```bash

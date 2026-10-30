@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/salasemilio1/Compass/internal/compass"
 )
@@ -233,5 +234,86 @@ func TestReadInputToleratesGarbage(t *testing.T) {
 	input := ReadInput(strings.NewReader("not json"))
 	if input.Cwd == "" {
 		t.Error("cwd should fall back to the process's")
+	}
+}
+
+// fakeCompass writes an executable script named compass that prints `compass <version> (format 3)`,
+// or runs body instead when given.
+func fakeCompass(t *testing.T, version, body string) string {
+	t.Helper()
+	dir := t.TempDir()
+	if body == "" {
+		body = "echo 'compass " + version + " (format 3)'"
+	}
+	if err := os.WriteFile(filepath.Join(dir, "compass"), []byte("#!/bin/sh\n# compass\n"+body+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestSessionStartNotesAnOlderGoCompassFirstOnPath(t *testing.T) {
+	root := gitRepo(t)
+	pluginRoot := t.TempDir()
+	older := fakeCompass(t, "0.0.1", "")
+	data, err := SessionStart(Input{Cwd: root, Source: "startup"}, older, pluginRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := decode(t, data).HookSpecificOutput.AdditionalContext
+	want := []string{"version 0.0.1, older than the plugin's " + compass.Version, filepath.Join(older, "compass"),
+		filepath.Join(pluginRoot, "bin", "compass"), "this is the resume brief"}
+	for _, fragment := range want {
+		if !strings.Contains(text, fragment) {
+			t.Errorf("brief lacks %q:\n%s", fragment, text)
+		}
+	}
+}
+
+func TestSessionStartNoOlderGoNote(t *testing.T) {
+	root := gitRepo(t)
+	pluginRoot := t.TempDir()
+	// The plugin's own launcher first on PATH, even when its version prints old.
+	pluginBin := filepath.Join(pluginRoot, "bin")
+	os.MkdirAll(pluginBin, 0o755)
+	os.WriteFile(filepath.Join(pluginBin, "compass"), []byte("#!/bin/sh\n# compass\necho 'compass 0.0.1 (format 3)'\n"), 0o755)
+	cases := map[string]struct{ path, root string }{
+		"same version":        {fakeCompass(t, compass.Version, ""), pluginRoot},
+		"newer":               {fakeCompass(t, "99.0.0", ""), pluginRoot},
+		"not a version":       {fakeCompass(t, "", "echo hello"), pluginRoot},
+		"hangs":               {fakeCompass(t, "", "sleep 30"), pluginRoot},
+		"the plugin's own":    {pluginBin, pluginRoot},
+		"no plugin root":      {fakeCompass(t, "0.0.1", ""), ""},
+		"relative PATH entry": {".", pluginRoot},
+		"inside the project":  {root, pluginRoot},
+		"floods stdout":       {fakeCompass(t, "", "exec yes compass"), pluginRoot},
+	}
+	// A relative entry pointing at an old compass in the repo must never run.
+	os.WriteFile(filepath.Join(root, "compass"), []byte("#!/bin/sh\n# compass\necho 'compass 0.0.1 (format 3)'\n"), 0o755)
+	for name, c := range cases {
+		t.Run(name, func(t *testing.T) {
+			start := time.Now()
+			data, err := SessionStart(Input{Cwd: root, Source: "startup"}, c.path, c.root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if text := decode(t, data).HookSpecificOutput.AdditionalContext; strings.Contains(text, "older than the plugin's") {
+				t.Errorf("unexpected note:\n%s", text)
+			}
+			if elapsed := time.Since(start); elapsed > 1500*time.Millisecond {
+				t.Errorf("hook took %s", elapsed)
+			}
+		})
+	}
+}
+
+func TestOlderGoCheckLeavesNoChildBehind(t *testing.T) {
+	root := gitRepo(t)
+	marker := filepath.Join(t.TempDir(), "orphan")
+	// The child outlives its parent unless the whole process group is killed.
+	dir := fakeCompass(t, "", "(sleep 3; touch "+marker+") & sleep 30")
+	SessionStart(Input{Cwd: root, Source: "startup"}, dir, t.TempDir())
+	time.Sleep(3500 * time.Millisecond)
+	if _, err := os.Stat(marker); err == nil {
+		t.Fatal("the version probe's child survived the hook")
 	}
 }
